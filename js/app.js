@@ -1113,6 +1113,7 @@ function meetingDrawer() {
       <div class="timeline-main">
         <strong>${x.topic}</strong>
         <span class="tag tag-blue">${x.type}</span>
+        ${(x.location || x.host) ? `<span class="note-text">${[x.location ? '地点 ' + x.location : '', x.host ? '主持人 ' + x.host : ''].filter(Boolean).join(' · ')}</span>` : ''}
       </div>
     </li>`).join('');
   const heldList = m.held.map(x => `
@@ -1121,6 +1122,7 @@ function meetingDrawer() {
         <div><strong>${x.topic}</strong><span>${x.date} · ${x.type}</span></div>
         <span class="tag tag-ok">已开展</span>
       </div>
+      ${(x.location || x.host || x.attendance) ? `<p class="record-meta">${[x.location ? '地点 ' + x.location : '', x.host ? '主持人 ' + x.host : '', x.attendance ? '参与 ' + x.attendance : ''].filter(Boolean).join(' · ')}</p>` : ''}
       <p>${x.summary}</p>
       ${x.photos && x.photos.length ? photoGrid(x.photos, x.topic) : ''}
     </div>`).join('');
@@ -1185,7 +1187,7 @@ function activityDrawer() {
       <span class="timeline-date">${x.date}</span>
       <div class="timeline-main">
         <strong>${x.name}</strong>
-        <span class="note-text">${x.note}</span>
+        <span class="note-text">${[x.note, x.location ? '地点 ' + x.location : '', x.leader ? '负责人 ' + x.leader : ''].filter(Boolean).join(' · ')}</span>
       </div>
     </li>`).join('');
   const heldList = a.held.map(x => `
@@ -1194,6 +1196,7 @@ function activityDrawer() {
         <div><strong>${x.name}</strong><span>${x.date}</span></div>
         <span class="tag tag-ok">已开展</span>
       </div>
+      ${(x.location || x.leader || x.participants) ? `<p class="record-meta">${[x.location ? '地点 ' + x.location : '', x.leader ? '负责人 ' + x.leader : '', x.participants ? '参与 ' + x.participants : ''].filter(Boolean).join(' · ')}</p>` : ''}
       <p>${x.summary}</p>
       ${x.photos && x.photos.length ? photoGrid(x.photos, x.name) : ''}
     </div>`).join('');
@@ -1356,7 +1359,9 @@ const EDITOR_FORMS = {
     fields: [
       { k: 'date', label: '日期', placeholder: '如 09-01' },
       { k: 'topic', label: '主题' },
-      { k: 'type', label: '类型', placeholder: '如 主题班会' }
+      { k: 'type', label: '类型', placeholder: '如 主题班会' },
+      { k: 'location', label: '地点', required: false, placeholder: '如 本班教室' },
+      { k: 'host', label: '主持人', required: false, placeholder: '如 班长' }
     ]
   },
   'meeting-held': {
@@ -1365,7 +1370,10 @@ const EDITOR_FORMS = {
       { k: 'date', label: '日期', placeholder: '如 08-20' },
       { k: 'topic', label: '主题' },
       { k: 'type', label: '类型' },
-      { k: 'summary', label: '内容摘要', type: 'textarea' }
+      { k: 'summary', label: '内容摘要', type: 'textarea' },
+      { k: 'location', label: '地点', required: false, placeholder: '如 本班教室' },
+      { k: 'host', label: '主持人', required: false },
+      { k: 'attendance', label: '参与情况', required: false, placeholder: '如 48 人全部参加' }
     ]
   },
   'communication-record': {
@@ -1401,7 +1409,9 @@ const EDITOR_FORMS = {
     fields: [
       { k: 'date', label: '日期' },
       { k: 'name', label: '活动名称' },
-      { k: 'note', label: '说明' }
+      { k: 'note', label: '说明' },
+      { k: 'location', label: '地点', required: false },
+      { k: 'leader', label: '负责人', required: false }
     ]
   },
   'activity-held': {
@@ -1409,7 +1419,10 @@ const EDITOR_FORMS = {
     fields: [
       { k: 'date', label: '日期' },
       { k: 'name', label: '活动名称' },
-      { k: 'summary', label: '内容摘要', type: 'textarea' }
+      { k: 'summary', label: '内容摘要', type: 'textarea' },
+      { k: 'location', label: '地点', required: false },
+      { k: 'leader', label: '负责人', required: false },
+      { k: 'participants', label: '参与人数', required: false, placeholder: '如 48 人' }
     ]
   }
 };
@@ -1446,8 +1459,12 @@ const EDIT_HANDLERS = {
   homework: {}
 };
 
+function moduleKey(k) {
+  return k === 'meeting' ? 'meetings' : k === 'activity' ? 'activities' : k;
+}
+
 function enableDrawerEdit(key) {
-  const module = key.startsWith('student:') ? null : key;
+  const module = key.startsWith('student:') ? null : moduleKey(key);
   const body = byId('drawer').querySelector('.drawer-body');
   if (!body || !module || !EDIT_HANDLERS[module]) return;
   body.classList.add('editing');
@@ -1470,7 +1487,8 @@ function enableDrawerEdit(key) {
       });
       return;
     }
-    const [mod, field] = type.split('-');
+    const mod = moduleKey(type.split('-')[0]);
+    const field = type.split('-')[1];
     if (!EDIT_HANDLERS[mod] || !EDIT_HANDLERS[mod][field]) return;
 
     const cfg = EDITOR_FORMS[type];
@@ -1484,34 +1502,75 @@ function enableDrawerEdit(key) {
       head.appendChild(btn);
     }
 
+    const getItem = idx => {
+      const m = moduleKey(type.split('-')[0]);
+      const f = type.split('-')[1];
+      return EDIT_HANDLERS[m][f].get(D[m]())[idx];
+    };
+    const mkEdit = idx => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'del-btn edit-item-btn';
+      b.textContent = '✎';
+      b.title = '编辑';
+      b.addEventListener('click', () => {
+        openFormModal(cfg, getItem(idx) || {}, values => editDrawerItem(key, type, idx, values));
+      });
+      return b;
+    };
+    const mkDel = idx => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'del-btn';
+      b.textContent = '×';
+      b.title = '删除';
+      b.addEventListener('click', () => deleteDrawerItem(key, type, idx));
+      return b;
+    };
+
     qsa('.plain-list li', section).forEach((li, idx) => {
-      const del = document.createElement('button');
-      del.type = 'button';
-      del.className = 'del-btn';
-      del.textContent = '×';
-      del.title = '删除';
-      del.addEventListener('click', () => deleteDrawerItem(key, type, idx));
-      li.appendChild(del);
+      li.appendChild(mkEdit(idx));
+      li.appendChild(mkDel(idx));
     });
 
     const tbody = section.querySelector('.mini-table tbody');
     if (tbody) qsa('tr', tbody).forEach((tr, idx) => {
       const td = document.createElement('td');
       td.className = 'td-del';
-      const del = document.createElement('button');
-      del.type = 'button';
-      del.className = 'del-btn';
-      del.textContent = '×';
-      del.title = '删除';
-      del.addEventListener('click', () => deleteDrawerItem(key, type, idx));
-      td.appendChild(del);
+      td.appendChild(mkEdit(idx));
+      td.appendChild(mkDel(idx));
       tr.appendChild(td);
+    });
+
+    qsa('.timeline-item', section).forEach((li, idx) => {
+      const acts = document.createElement('div');
+      acts.className = 'li-actions';
+      acts.appendChild(mkEdit(idx));
+      acts.appendChild(mkDel(idx));
+      if (type === 'meeting-plan') {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn tiny';
+        b.textContent = '转为已开展';
+        b.addEventListener('click', () => markPlanHeld(key, idx));
+        acts.appendChild(b);
+      }
+      li.appendChild(acts);
+    });
+
+    qsa('.record-card', section).forEach((card, idx) => {
+      const acts = document.createElement('div');
+      acts.className = 'li-actions';
+      acts.appendChild(mkEdit(idx));
+      acts.appendChild(mkDel(idx));
+      card.appendChild(acts);
     });
   });
 }
 
 async function addDrawerItem(key, type, values) {
-  const [mod, field] = type.split('-');
+  const mod = moduleKey(type.split('-')[0]);
+  const field = type.split('-')[1];
   const h = EDIT_HANDLERS[mod][field];
   const rec = D[mod]();
   const arr = h.get(rec);
@@ -1522,7 +1581,8 @@ async function addDrawerItem(key, type, values) {
 }
 
 async function deleteDrawerItem(key, type, idx) {
-  const [mod, field] = type.split('-');
+  const mod = moduleKey(type.split('-')[0]);
+  const field = type.split('-')[1];
   const h = EDIT_HANDLERS[mod][field];
   const rec = D[mod]();
   const arr = h.get(rec);
@@ -1530,6 +1590,39 @@ async function deleteDrawerItem(key, type, idx) {
   h.set(rec, arr);
   await saveRecord(mod, rec);
   refreshDrawer(key);
+}
+
+async function editDrawerItem(key, type, idx, values) {
+  const mod = moduleKey(type.split('-')[0]);
+  const field = type.split('-')[1];
+  const h = EDIT_HANDLERS[mod][field];
+  const rec = D[mod]();
+  const arr = h.get(rec);
+  arr[idx] = Object.assign({}, arr[idx], values);
+  h.set(rec, arr);
+  await saveRecord(mod, rec);
+  refreshDrawer(key);
+}
+
+async function markPlanHeld(key, idx) {
+  const rec = D.meetings();
+  const item = rec.plan[idx];
+  if (!item) return;
+  if (!confirm(`将「${item.topic}」标记为已开展并移入班会记录？`)) return;
+  rec.held.push({
+    date: item.date || TODAY,
+    topic: item.topic,
+    type: item.type || '主题班会',
+    summary: item.summary || '',
+    location: item.location || '',
+    host: item.host || '',
+    attendance: '',
+    photos: []
+  });
+  rec.plan.splice(idx, 1);
+  await saveRecord('meetings', rec);
+  refreshDrawer(key);
+  showToast('已转为班会记录');
 }
 
 /* ---------- 表单弹窗 ---------- */

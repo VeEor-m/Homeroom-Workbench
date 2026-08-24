@@ -698,6 +698,36 @@ await cdp.eval(`(() => {
 await sleep(500);
 check('考核记录添加', await cdp.eval(`D.committee().assessments.some(x => x.name === '王梓涵' && x.score === 95)`));
 
+/* ================= 班会 / 活动完善 ================= */
+await cdp.eval(`location.hash = 'workbench'`);
+await sleep(800);
+await cdp.eval(`document.querySelector('.work-card[data-drawer="meeting"]').click()`);
+await sleep(400);
+await cdp.eval(`document.querySelector('#drawerEditBtn').click()`);
+await sleep(300);
+const planBefore = await cdp.eval(`D.meetings().plan.length`);
+await cdp.eval(`document.querySelector('.d-section[data-editor="meeting-plan"] .timeline-item .edit-item-btn').click()`);
+await sleep(300);
+await cdp.eval(`(() => { const m = document.querySelector('.form-modal'); m.querySelector('[data-k="topic"]').value = '测试班会主题'; m.querySelector('[data-k="location"]').value = '本班教室'; m.querySelector('[data-save]').click(); })()`);
+await sleep(500);
+check('班会计划可编辑', await cdp.eval(`D.meetings().plan.some(x => x.topic === '测试班会主题' && x.location === '本班教室')`));
+await cdp.eval(`window.confirm = () => true`);
+await cdp.eval(`document.querySelector('.d-section[data-editor="meeting-plan"] .timeline-item .btn').click()`);
+await sleep(500);
+check('计划转为已开展', await cdp.eval(`D.meetings().plan.length === ${planBefore - 1} && D.meetings().held.some(x => x.topic === '测试班会主题')`));
+await cdp.eval(`document.querySelector('.drawer-close').click()`);
+await sleep(300);
+await cdp.eval(`document.querySelector('.work-card[data-drawer="activity"]').click()`);
+await sleep(400);
+await cdp.eval(`document.querySelector('.d-section[data-editor="activity-held"] .record-card:first-child .edit-item-btn').click()`);
+await sleep(300);
+await cdp.eval(`(() => { const m = document.querySelector('.form-modal'); m.querySelector('[data-k="leader"]').value = '张老师'; m.querySelector('[data-save]').click(); })()`);
+await sleep(500);
+check('活动记录可编辑', await cdp.eval(`D.activities().held[0].leader === '张老师'`));
+await cdp.eval(`state.drawerEditing = false`);
+await cdp.eval(`document.querySelector('.drawer-close').click()`);
+await sleep(300);
+
 /* ================= 导入中心（Excel 模板 / 花名册导入） ================= */
 const rosterXlsxPath = 'C:/Users/Administrator/Documents/Codex/2026-08-24/build-x20/outputs/teacher-workbench/assets/templates/花名册模板.xlsx';
 const schedXlsxPath = 'C:/Users/Administrator/Documents/Codex/2026-08-24/build-x20/outputs/teacher-workbench/assets/templates/课程表模板.xlsx';

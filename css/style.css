@@ -1311,6 +1311,11 @@ body.drawer-lock { overflow: hidden; }
 .record-head strong { display: block; font-size: 13px; }
 .record-head span { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; }
 .record-card p { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.65; }
+.record-meta {
+  margin: 0 0 6px;
+  font-size: 11px;
+  color: var(--accent-deep);
+}
 
 /* 活动照片 */
 .photo-grid {
@@ -1325,6 +1330,7 @@ body.drawer-lock { overflow: hidden; }
   border-radius: 10px;
   overflow: hidden;
   border: 1px solid var(--border);
+  position: relative;
 }
 
 .photo-grid img {
@@ -1340,6 +1346,21 @@ body.drawer-lock { overflow: hidden; }
   padding: 5px 8px;
   background: var(--surface-2);
 }
+
+.li-actions {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  flex: none;
+}
+
+.edit-item-btn {
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+}
+
+.edit-item-btn:hover { background: var(--accent); color: #fff; }
+
 
 /* 学生详情 */
 .student-hero {
