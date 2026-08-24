@@ -33,7 +33,7 @@ const ICONS = {
 const PAGES = [
   { key: 'workbench', label: '工作台', icon: 'dashboard', ready: true },
   { key: 'seating', label: '座次表', icon: 'seating', ready: true },
-  { key: 'duty', label: '值日表', icon: 'duty', ready: false },
+  { key: 'duty', label: '值日表', icon: 'duty', ready: true },
   { key: 'grades', label: '成绩分析', icon: 'grades', ready: true },
   { key: 'roster', label: '花名册', icon: 'roster', ready: true },
   { key: 'committee', label: '班委名单', icon: 'committee', ready: false },
@@ -42,10 +42,6 @@ const PAGES = [
 ];
 
 const PLACEHOLDER_INFO = {
-  duty: {
-    icon: 'duty', title: '值日表', desc: '值日排班与提醒模块',
-    points: ['按周自动轮值排班', '值日生名单与职责查看', '值日完成情况打卡', '调换值日一键通知']
-  },
   committee: {
     icon: 'committee', title: '班委名单', desc: '班委职务与分工模块',
     points: ['班委职务一览', '职责说明与考核', '换届记录']
@@ -79,6 +75,8 @@ const state = {
   gradesSubject: '总分',
   gradesGroup: 0,
   gradesEdit: false,
+  dutyWeekId: null,
+  dutyEdit: false,
   needsInit: false,
   initStep: 1,
   initOption: null,
@@ -157,7 +155,8 @@ const D = {
   activities() { return AppData.records.activities; },
   schedule() { return AppData.records.schedule; },
   todos() { return AppData.records.todos; },
-  grades() { return AppData.records.grades; }
+  grades() { return AppData.records.grades; },
+  duty() { return AppData.records.duty; }
 };
 
 function cloneSeed(key) {
@@ -359,6 +358,7 @@ function render() {
   else if (state.page === 'seating') renderSeating();
   else if (state.page === 'roster') renderRoster();
   else if (state.page === 'grades') renderGrades();
+  else if (state.page === 'duty') renderDuty();
   else if (state.page === 'schedule') renderSchedule();
   else renderPlaceholder(page.key);
 }
@@ -2677,6 +2677,286 @@ function parseGradesGrid(grid) {
 }
 
 /* ============================================================
+ * 值日表页面
+ * ============================================================ */
+const DUTY_DAYS = ['周一', '周二', '周三', '周四', '周五'];
+
+function mondayOf(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const day = d.getDay() || 7;
+  d.setDate(d.getDate() - day + 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function addDays(iso, n) {
+  const d = new Date(iso + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function dutySelectedWeek() {
+  const d = D.duty();
+  if (!d.weeks.length) return null;
+  return d.weeks.find(w => w.id === state.dutyWeekId) ||
+    d.weeks.find(w => w.weekStart === mondayOf(TODAY)) ||
+    d.weeks[0];
+}
+
+function dutyTaskFor(tasks, index) {
+  return tasks[index % tasks.length];
+}
+
+function nextDutyWeekId(d) {
+  let n = 1;
+  while (d.weeks.some(w => w.id === 'w' + n)) n += 1;
+  return 'w' + n;
+}
+
+function generateDutyWeeks(count = 12) {
+  const d = D.duty();
+  const students = D.students();
+  if (!students.length) {
+    showToast('花名册为空，请先导入学生', 'warn');
+    return;
+  }
+  const tasks = d.tasks.length ? d.tasks : ['扫地', '擦黑板', '摆桌椅', '倒垃圾', '浇花'];
+  const startMonday = mondayOf(TODAY);
+  const offsetBase = d.weeks.length;
+  for (let i = 0; i < count; i += 1) {
+    const weekStart = addDays(startMonday, i * 7);
+    if (d.weeks.some(w => w.weekStart === weekStart)) continue;
+    d.weeks.push(Object.assign({ id: nextDutyWeekId(d) }, buildDutyWeek(weekStart, students, tasks, offsetBase + i)));
+  }
+  d.weeks.sort((a, b) => a.weekStart.localeCompare(b.weekStart));
+}
+
+function renderDuty() {
+  const d = D.duty();
+  if (!d.weeks.length) {
+    byId('content').innerHTML = `
+      <div class="page-head"><div><h2>值日表</h2><p>${classInfo().className} · 暂无排班</p></div></div>
+      <div class="placeholder card">
+        <div class="placeholder-icon">${ICONS.duty}</div>
+        <h3>还没有值日排班</h3>
+        <p>点击「自动排班」按花名册生成本学期轮值表（每天 6 人，每周轮转）。</p>
+        <div class="placeholder-points">
+          <button class="btn primary" id="dutyAutoBtn" type="button">＋ 自动排班</button>
+        </div>
+      </div>`;
+    byId('dutyAutoBtn').addEventListener('click', () => {
+      generateDutyWeeks(12);
+      saveRecord('duty', d);
+      renderDuty();
+    });
+    return;
+  }
+
+  const week = dutySelectedWeek();
+  state.dutyWeekId = week.id;
+  const tasks = d.tasks;
+  const todayDay = new Date(TODAY + 'T00:00:00').getDay() || 7;
+  const todayDate = week.weekStart === mondayOf(TODAY) ? addDays(week.weekStart, todayDay - 1) : null;
+
+  const weekOptions = d.weeks.map(w => `
+    <option value="${w.id}" ${w.id === week.id ? 'selected' : ''}>${fmtDate(w.weekStart)} 起</option>`).join('');
+
+  const cols = DUTY_DAYS.map((day, di) => {
+    const date = addDays(week.weekStart, di);
+    const names = week.assigned[day] || [];
+    const check = week.checks[date] || {};
+    const rows = names.map((name, k) => `
+      <div class="duty-row">
+        <span class="duty-task">${dutyTaskFor(tasks, k)}</span>
+        <span class="duty-name">${esc(name)}</span>
+      </div>`).join('') || '<p class="empty">未安排</p>';
+    return `
+      <div class="duty-day${date === todayDate ? ' today' : ''}">
+        <div class="duty-day-head">
+          <div><strong>${day}</strong><span>${fmtDate(date)}</span></div>
+          <span class="tag ${check.done ? 'tag-ok' : 'tag-muted'}">${check.done ? '已完成' : '未完成'}</span>
+        </div>
+        <div class="duty-body">${rows}</div>
+        <div class="duty-foot">
+          <button class="btn tiny" data-check="${date}" type="button">${check.done ? '取消打卡' : '打卡'}</button>
+          ${state.dutyEdit ? `<button class="btn tiny primary" data-editday="${day}" type="button">调整名单</button>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+
+  byId('content').innerHTML = `
+    <div class="page-head">
+      <div><h2>值日表</h2><p>${classInfo().className} · ${fmtDate(week.weekStart)} 起 · 每天 6 人轮值</p></div>
+      <div class="page-actions">
+        <button class="btn ghost" id="dutyCopyBtn" type="button" title="生成可粘贴到班级群的文本">复制本周值日表</button>
+        <button class="btn" id="dutyAutoBtn" type="button">＋ 自动排班</button>
+        <button class="btn ${state.dutyEdit ? 'primary' : 'ghost'}" id="dutyEditBtn" type="button">${state.dutyEdit ? '完成编辑' : '编辑模式'}</button>
+      </div>
+    </div>
+
+    <div class="grade-toolbar card">
+      <label class="dims-label">周次 <select id="dutyWeekSel">${weekOptions}</select></label>
+      <button class="btn tiny" id="dutyPrevBtn" type="button">上一周</button>
+      <button class="btn tiny" id="dutyNextBtn" type="button">下一周</button>
+      <span class="grade-edit-hint">${state.dutyEdit ? '编辑模式：点击「调整名单」修改值日学生' : '每天打卡记录值日完成情况；本周列已高亮'}</span>
+    </div>
+
+    <div class="duty-grid">${cols}</div>`;
+
+  bindDutyEvents();
+}
+
+function bindDutyEvents() {
+  byId('dutyWeekSel').addEventListener('change', e => {
+    state.dutyWeekId = e.target.value;
+    renderDuty();
+  });
+  const sorted = D.duty().weeks.slice().sort((a, b) => a.weekStart.localeCompare(b.weekStart));
+  const idx = sorted.findIndex(w => w.id === state.dutyWeekId);
+  byId('dutyPrevBtn').addEventListener('click', () => {
+    if (idx > 0) {
+      state.dutyWeekId = sorted[idx - 1].id;
+      renderDuty();
+    }
+  });
+  byId('dutyNextBtn').addEventListener('click', () => {
+    if (idx >= 0 && idx < sorted.length - 1) {
+      state.dutyWeekId = sorted[idx + 1].id;
+      renderDuty();
+    }
+  });
+  byId('dutyCopyBtn').addEventListener('click', copyDutyWeek);
+  byId('dutyAutoBtn').addEventListener('click', () => {
+    generateDutyWeeks(12);
+    saveRecord('duty', D.duty());
+    renderDuty();
+    showToast('已自动排班（含本周起 12 周）');
+  });
+  byId('dutyEditBtn').addEventListener('click', () => {
+    state.dutyEdit = !state.dutyEdit;
+    renderDuty();
+  });
+  qsa('[data-check]').forEach(btn => {
+    btn.addEventListener('click', () => markDutyDone(btn.dataset.check, dutySelectedWeek()));
+  });
+  qsa('[data-editday]').forEach(btn => {
+    btn.addEventListener('click', () => openDutyPicker(btn.dataset.editday, dutySelectedWeek()));
+  });
+}
+
+async function markDutyDone(date, week) {
+  const d = D.duty();
+  const w = d.weeks.find(x => x.id === week.id);
+  if (!w) return;
+  const cur = w.checks[date] || {};
+  if (cur.done) {
+    if (!confirm(`确定取消 ${date} 的值日打卡吗？`)) return;
+    delete w.checks[date];
+    await saveRecord('duty', d);
+    renderDuty();
+    showToast(`${date} 打卡已取消`);
+    return;
+  }
+  openFormModal({
+    title: '值日打卡 · ' + fmtDate(date),
+    fields: [{ k: 'note', label: '备注', required: false, placeholder: '如 全部完成，卫生检查合格' }]
+  }, {}, async out => {
+    w.checks[date] = { done: true, note: out.note, doneAt: new Date().toISOString() };
+    await saveRecord('duty', d);
+    renderDuty();
+    showToast(`${fmtDate(date)} 值日已完成`);
+  });
+}
+
+function openDutyPicker(day, week) {
+  closeFormModal();
+  const d = D.duty();
+  const w = d.weeks.find(x => x.id === week.id);
+  if (!w) return;
+  const current = w.assigned[day] || [];
+  const selected = new Set(current);
+  const chips = D.students().map(s => `
+    <button class="duty-pick-chip${selected.has(s.name) ? ' on' : ''}" data-name="${esc(s.name)}" type="button">${esc(s.name)}</button>`).join('');
+
+  const root = document.createElement('div');
+  root.className = 'form-modal';
+  root.innerHTML = `
+    <div class="form-backdrop" data-close></div>
+    <div class="form-card card" role="dialog" aria-modal="true">
+      <div class="form-head"><h3>${day} 值日名单</h3><button class="drawer-close" data-close type="button">${ICONS.x}</button></div>
+      <div class="form-body">
+        <p class="import-hint">${day}（${fmtDate(addDays(w.weekStart, DUTY_DAYS.indexOf(day)))}）值日，请选择 6 名学生，任务自动轮换。</p>
+        <div class="duty-picker">${chips}</div>
+        <p class="form-error" hidden></p>
+      </div>
+      <div class="form-actions">
+        <button class="btn ghost" data-close type="button">取消</button>
+        <button class="btn primary" id="dutyPickSave" type="button">保存</button>
+      </div>
+    </div>`;
+  document.body.appendChild(root);
+
+  qsa('[data-close]', root).forEach(el => el.addEventListener('click', closeFormModal));
+  qsa('.duty-pick-chip', root).forEach(chip => {
+    chip.addEventListener('click', () => chip.classList.toggle('on'));
+  });
+  root.querySelector('#dutyPickSave').addEventListener('click', async () => {
+    const names = qsa('.duty-pick-chip.on', root).map(c => c.dataset.name);
+    const err = root.querySelector('.form-error');
+    if (names.length !== 6) {
+      err.textContent = `请选择 6 名学生（当前 ${names.length} 人）`;
+      err.hidden = false;
+      return;
+    }
+    w.assigned[day] = names;
+    await saveRecord('duty', d);
+    closeFormModal();
+    renderDuty();
+    showToast(`${day} 值日名单已更新`);
+  });
+}
+
+function dutyWeekText(week) {
+  const d = D.duty();
+  const tasks = d.tasks;
+  const lines = [`本周值日表（${classInfo().className}，${fmtDate(week.weekStart)} 起）`];
+  DUTY_DAYS.forEach((day, di) => {
+    const date = addDays(week.weekStart, di);
+    const names = week.assigned[day] || [];
+    const parts = names.map((n, k) => `${dutyTaskFor(tasks, k)}：${n}`);
+    lines.push(`${day} ${fmtDate(date)}：${parts.join('；')}`);
+  });
+  return lines.join('\n');
+}
+
+function copyDutyWeek() {
+  const week = dutySelectedWeek();
+  if (!week) return;
+  const text = dutyWeekText(week);
+  const done = () => showToast('本周值日表已复制，可粘贴到班级群');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+  } else {
+    fallbackCopy(text, done);
+  }
+}
+
+function fallbackCopy(text, done) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+    done();
+  } catch (e) {
+    showToast('复制失败，请手动选择文本', 'warn');
+  }
+  ta.remove();
+}
+
+/* ============================================================
  * 课程表页面
  * ============================================================ */
 const SUBJECTS = ['语文', '数学', '英语', '物理', '化学', '生物', '道德与法治', '历史', '地理', '体育', '音乐', '美术', '信息技术', '劳动', '班会', '自习'];
@@ -4157,7 +4437,8 @@ async function putBlankRecords() {
       adjustments: []
     },
     todos: [],
-    grades: { exams: [] }
+    grades: { exams: [] },
+    duty: { tasks: ['扫地', '擦黑板', '摆桌椅', '倒垃圾', '浇花'], weeks: [] }
   };
   for (const k of Object.keys(blank)) await Store.putRecord(k, blank[k]);
 }

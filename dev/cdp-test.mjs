@@ -91,7 +91,7 @@ check('CSV 解析姓名正确', await cdp.eval(`parseRosterCSV('姓名,性别,�
 check('导航项 = 8', await cdp.eval(`document.querySelectorAll('.nav-item').length === 8`));
 check('工作卡片 = 8', await cdp.eval(`document.querySelectorAll('.work-card').length === 8`));
 check('首次播种学生 = 48', await cdp.eval(`Store.getAllStudents().then(a => a.length)`));
-check('记录键 = 9', await cdp.eval(`Store.exportData().then(d => Object.keys(d.records).length)`));
+check('记录键 = 10', await cdp.eval(`Store.exportData().then(d => Object.keys(d.records).length)`));
 await cdp.shot('01-workbench');
 
 /* ---- 今日课程 ---- */
@@ -371,7 +371,8 @@ await sleep(300);
 await cdp.eval(`(() => { const m = document.querySelector('.form-modal'); m.querySelector('[data-k="name"]').value = '花名册测试'; m.querySelector('[data-k="stuNo"]').value = ''; m.querySelector('[data-save]').click(); })()`);
 await sleep(500);
 check('新增后 49 人', await cdp.eval(`document.querySelectorAll('.roster-table tbody tr').length === 49`));
-await cdp.eval(`window.confirm = () => true; document.querySelector('.roster-table tbody tr[data-sid="s49"] [data-del]').click()`);
+const newSid = await cdp.eval(`Store.getAllStudents().then(a => a.find(s => s.name === '花名册测试').id)`);
+await cdp.eval(`window.confirm = () => true; document.querySelector('.roster-table tbody tr[data-sid="${newSid}"] [data-del]').click()`);
 await sleep(500);
 check('删除后恢复 48 人', await cdp.eval(`document.querySelectorAll('.roster-table tbody tr').length === 48`));
 await cdp.send('Page.reload', { ignoreCache: true });
@@ -556,13 +557,14 @@ await cdp.eval(`location.hash = 'grades'`);
 await sleep(900);
 check('成绩分析页面', await cdp.eval(`document.querySelector('.page-title').textContent === '成绩分析'`));
 check('统计卡片 6 个', await cdp.eval(`document.querySelectorAll('.stat').length === 6`));
-check('排名表 48 行', await cdp.eval(`document.querySelectorAll('.grade-rank tbody tr').length === 48`));
+const gradeRowExpected = await cdp.eval(`D.students().filter(s => D.grades().exams[0].scores[s.id]).length`);
+check('排名表行数与有成绩学生一致', await cdp.eval(`document.querySelectorAll('.grade-rank tbody tr').length === ${gradeRowExpected}`));
 check('分数分布 5 段', await cdp.eval(`document.querySelectorAll('.dist-row').length === 5`));
 check('平均分显示正常', await cdp.eval(`(() => { const v = Number(document.querySelector('.stat.ok strong').textContent); return v > 0 && v < 1000; })()`));
 await cdp.shot('11-grades');
 await cdp.eval(`(() => { const s = document.querySelector('#gradeSubjectSel'); s.value = '语文'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
 await sleep(400);
-check('切换科目后排名更新', await cdp.eval(`document.querySelector('.grade-rank .d-section-head h3').textContent.includes('语文') && document.querySelectorAll('.grade-rank tbody tr').length === 48`));
+check('切换科目后排名更新', await cdp.eval(`document.querySelector('.grade-rank .d-section-head h3').textContent.includes('语文') && document.querySelectorAll('.grade-rank tbody tr').length === ${gradeRowExpected}`));
 await cdp.eval(`document.querySelector('#gradeAddExamBtn').click()`);
 await sleep(300);
 await cdp.eval(`(() => { const m = document.querySelector('.form-modal'); m.querySelector('[data-k="name"]').value = '测试考试'; m.querySelector('[data-save]').click(); })()`);
@@ -586,6 +588,46 @@ check('成绩录入持久化', await cdp.eval(`D.grades().exams.find(e => e.name
 await cdp.eval(`window.confirm = () => true; document.querySelector('#gradeDelExamBtn').click()`);
 await sleep(500);
 check('删除考试成功', await cdp.eval(`!document.querySelector('#gradeExamSel').textContent.includes('测试考试')`));
+
+/* ================= 值日表 ================= */
+await cdp.eval(`location.hash = 'duty'`);
+await sleep(900);
+check('值日表页面', await cdp.eval(`document.querySelector('.page-title').textContent === '值日表'`));
+check('周一到周五 5 列', await cdp.eval(`document.querySelectorAll('.duty-day').length === 5`));
+check('每天 6 人', await cdp.eval(`document.querySelectorAll('.duty-day:first-child .duty-row').length === 6`));
+check('任务分工显示', await cdp.eval(`document.querySelector('.duty-day').textContent.includes('扫地')`));
+await cdp.shot('12-duty');
+await cdp.eval(`document.querySelector('[data-check="2026-08-24"]').click()`);
+await sleep(300);
+check('打卡表单打开', await cdp.eval(`!!document.querySelector('.form-modal')`));
+await cdp.eval(`(() => { const m = document.querySelector('.form-modal'); m.querySelector('[data-k="note"]').value = '全部完成'; m.querySelector('[data-save]').click(); })()`);
+await sleep(500);
+check('打卡成功标记', await cdp.eval(`document.querySelector('[data-check="2026-08-24"]').textContent === '取消打卡'`));
+await cdp.send('Page.reload', { ignoreCache: true });
+await sleep(1800);
+await cdp.eval(`location.hash = 'duty'`);
+await sleep(800);
+check('打卡持久化', await cdp.eval(`document.querySelector('[data-check="2026-08-24"]').textContent === '取消打卡'`));
+await cdp.eval(`document.querySelector('#dutyEditBtn').click()`);
+await sleep(300);
+await cdp.eval(`document.querySelector('[data-editday="周三"]').click()`);
+await sleep(300);
+check('名单选择器打开', await cdp.eval(`!!document.querySelector('.duty-picker')`));
+await cdp.eval(`(() => {
+  const chips = document.querySelectorAll('.duty-pick-chip');
+  const click = n => { const c = [...chips].find(x => x.dataset.name === n); if (c) c.click(); };
+  click('马俊杰'); click('朱晓琳'); click('沈梦瑶'); click('测试新生');
+  document.querySelector('#dutyPickSave').click();
+})()`);
+await sleep(500);
+check('周三名单更新', await cdp.eval(`(() => {
+  const a = D.duty().weeks.find(w => w.weekStart === '2026-08-24').assigned.周三;
+  return a.length === 6 && a.includes('沈梦瑶') && a.includes('测试新生') && !a.includes('马俊杰');
+})()`));
+check('复制按钮存在', await cdp.eval(`!!document.querySelector('#dutyCopyBtn')`));
+await cdp.eval(`document.querySelector('#dutyAutoBtn').click()`);
+await sleep(500);
+check('自动排班增加周次', await cdp.eval(`D.duty().weeks.length > 1`));
 
 /* ================= 导入中心（Excel 模板 / 花名册导入） ================= */
 const rosterXlsxPath = 'C:/Users/Administrator/Documents/Codex/2026-08-24/build-x20/outputs/teacher-workbench/assets/templates/花名册模板.xlsx';

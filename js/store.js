@@ -24,7 +24,8 @@ const SEED_RECORDS = {
   activities: ACTIVITIES,
   schedule: SCHEDULE,
   todos: TODOS,
-  grades: GRADES
+  grades: GRADES,
+  duty: DUTY
 };
 const RECORD_KEYS = Object.keys(SEED_RECORDS);
 

@@ -356,3 +356,26 @@ const GRADES = {
     return { id: meta.id, name: meta.name, date: meta.date, scores };
   })
 };
+
+/* 值日表：按周排班，每周一~周五每天 6 人，任务循环分配 */
+function buildDutyWeek(weekStart, students, tasks, offset) {
+  const days = ['周一', '周二', '周三', '周四', '周五'];
+  const perDay = 6;
+  const assigned = {};
+  days.forEach((day, di) => {
+    const start = (offset * days.length * perDay + di * perDay) % students.length;
+    const names = [];
+    for (let k = 0; k < perDay; k += 1) {
+      names.push(students[(start + k) % students.length].name);
+    }
+    assigned[day] = names;
+  });
+  return { weekStart, assigned, checks: {} };
+}
+
+const DUTY = {
+  tasks: ['扫地', '擦黑板', '摆桌椅', '倒垃圾', '浇花'],
+  weeks: [
+    Object.assign({ id: 'w1' }, buildDutyWeek('2026-08-24', STUDENTS, ['扫地', '擦黑板', '摆桌椅', '倒垃圾', '浇花'], 0))
+  ]
+};
