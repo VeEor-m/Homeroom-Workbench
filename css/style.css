@@ -1202,6 +1202,90 @@ body.drawer-lock { overflow: hidden; }
   white-space: nowrap;
 }
 
+/* ---------- 使用手册 ---------- */
+.manual-toc {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 13px 16px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.toc-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  padding-top: 6px;
+}
+
+.toc-list { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.toc-chip {
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--ink);
+  border-radius: 99px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+}
+
+.toc-chip:hover {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary-deep);
+}
+
+.manual-section {
+  padding: 16px 18px;
+  margin-bottom: 12px;
+}
+
+.manual-section h3 {
+  margin: 0 0 10px;
+  font-size: 15px;
+  color: var(--primary-deep);
+  border-left: 3px solid var(--primary);
+  padding-left: 10px;
+}
+
+.manual-section p {
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--ink);
+}
+
+.manual-section ul {
+  margin: 0 0 8px;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.manual-section li { margin-bottom: 4px; }
+
+.manual-section code {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-size: 12px;
+  color: var(--accent-deep);
+  font-family: Consolas, "Courier New", monospace;
+}
+
+.manual-tip {
+  background: var(--warn-soft);
+  border: 1px solid rgba(201, 147, 63, .35);
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 12px;
+  color: var(--ink);
+}
+
 .name-tag {
   display: inline-block;
   background: var(--surface-2);

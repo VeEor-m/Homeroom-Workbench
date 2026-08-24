@@ -94,6 +94,16 @@ check('首次播种学生 = 48', await cdp.eval(`Store.getAllStudents().then(a =
 check('记录键 = 10', await cdp.eval(`Store.exportData().then(d => Object.keys(d.records).length)`));
 await cdp.shot('01-workbench');
 
+/* ---- 使用手册 ---- */
+await cdp.eval(`document.querySelector('#manualBtn').click()`);
+await sleep(500);
+check('使用手册页面', await cdp.eval(`document.querySelector('.page-title').textContent === '使用手册'`));
+check('手册包含核心章节', await cdp.eval(`document.querySelector('#content').textContent.includes('快速上手') && document.querySelector('#content').textContent.includes('数据与备份')`));
+check('手册目录导航', await cdp.eval(`document.querySelectorAll('.toc-chip').length >= 10`));
+await cdp.eval(`location.hash = 'workbench'`);
+await sleep(500);
+check('返回工作台', await cdp.eval(`document.querySelector('.page-title').textContent === '工作台'`));
+
 /* ---- 今日课程 ---- */
 check('今日课程节数统计', await cdp.eval(`document.querySelector('#todayCoursesStat strong').textContent.startsWith('8')`));
 await cdp.eval(`document.querySelector('#todayCoursesStat').click()`);

@@ -26,7 +26,8 @@ const ICONS = {
   search: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>',
   x: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>',
   user: '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>',
-  settings: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6"/></svg>'
+  settings: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6"/></svg>',
+  manual: '<svg viewBox="0 0 24 24"><path d="M4 19.5V5.2A2.2 2.2 0 0 1 6.2 3h11.6A2.2 2.2 0 0 1 20 5.2v14.3"/><path d="M4 19.5A2.2 2.2 0 0 1 6.2 17.3H20"/><path d="M9 8h6M9 12h4"/></svg>'
 };
 
 /* ---------- 导航配置 ---------- */
@@ -404,6 +405,11 @@ function toggleSidebarCollapsed() {
 /* ---------- 路由与渲染 ---------- */
 function render() {
   hideTodayCourses();
+  if (state.page === 'manual') {
+    byId('pageTitle').textContent = '使用手册';
+    renderManual();
+    return;
+  }
   const page = PAGES.find(p => p.key === state.page);
   byId('pageTitle').textContent = page.label;
 
@@ -432,6 +438,131 @@ function renderPlaceholder(key) {
         ${cfg.points.map(pt => `<span class="point-chip">${pt}</span>`).join('')}
       </div>
     </div>`;
+}
+
+/* ============================================================
+ * 使用手册
+ * ============================================================ */
+function renderManual() {
+  const tip = (text) => `<p class="manual-tip">${text}</p>`;
+  const section = (id, title, body) => `
+    <section class="manual-section card" id="${id}">
+      <h3>${title}</h3>
+      ${body}
+    </section>`;
+
+  const sections = [
+    section('m-quickstart', '快速上手', `
+      <p>首次打开会进入<b>初始化向导</b>：填写老师姓名 / 班级名称 / 学期，再选择初始数据来源（导入花名册、示例班级数据或空白开始）。之后可随时在顶栏「设置」修改班级信息。</p>
+      <p>顶栏按钮：<b>设置</b>（班级信息 / 自动备份 / 数据管理）、<b>导出数据</b>、<b>导入数据</b>（备份恢复 / 花名册 / 课程表 / 成绩）、<b>使用手册</b>。</p>
+      ${tip('全部数据保存在本设备浏览器中，重要节点请记得「导出数据」下载备份。')}
+    `),
+    section('m-workbench', '工作台首页', `
+      <ul>
+        <li><b>常规工作 / 特色工作</b>共 8 张卡片，点击卡片打开详情面板，面板右上角「编辑」可添加、修改、删除记录。</li>
+        <li><b>待办提醒</b>：新增、编辑、删除、勾选完成，可设截止日期与优先级，逾期自动红色高亮。</li>
+        <li><b>今日课程</b>：点击或悬浮欢迎栏的节数，查看当天课表，当前老师所教课程会高亮。</li>
+      </ul>
+    `),
+    section('m-seating', '座次表', `
+      <ul>
+        <li>默认 6 排 × 8 列，按小组多选高亮、按姓名模糊搜索（支持拼音）。</li>
+        <li>「编辑模式」：点击座位修改学生信息，点空位新增学生；「移动 / 互换」先点一名学生再点目标座位；可在编辑栏随时调整<b>排 / 列</b>。</li>
+        <li>未安排座位的学生会进入待安排面板，点姓名即可安排。</li>
+      </ul>
+    `),
+    section('m-duty', '值日表', `
+      <ul>
+        <li>「＋ 自动排班」按花名册生成本学期轮值（每天 6 人、每周轮转），可切换周次。</li>
+        <li>每天可<b>打卡</b>记录完成情况（带备注，可撤销）。</li>
+        <li>编辑模式可调整任一天名单；「复制本周值日表」生成可发班级群的文本。</li>
+      </ul>
+    `),
+    section('m-grades', '成绩分析', `
+      <ul>
+        <li>支持多场考试：新建、删除、编辑模式逐科录入、CSV / Excel 导入导出（导入中心有成绩模板）。</li>
+        <li>自动生成统计（平均 / 最高最低 / 及格率 / 优秀率）、分数分布、总分与单科排名、与上次考试的<b>进退步</b>对比。</li>
+        <li>点击学生行查看个人成绩档案（各科与班均对比、均衡指数）。</li>
+      </ul>
+    `),
+    section('m-roster', '花名册', `
+      <ul>
+        <li>按姓名 / 学籍号 / 家长 / 电话模糊搜索（支持拼音），可按小组筛选。</li>
+        <li>新增、编辑、删除学生；点击行查看档案；<b>联系电话一键复制</b>；导出 CSV / Excel。</li>
+      </ul>
+    `),
+    section('m-committee', '班委名单', `
+      <ul>
+        <li>职务卡片一览（在任 / 空缺），职责说明可编辑。</li>
+        <li>「＋ 换届」选择职务与新任学生，自动交接并记录；考核记录可增删。</li>
+      </ul>
+    `),
+    section('m-schedule', '课程表', `
+      <ul>
+        <li>点击课程格可修改科目与任课教师（编辑模式），任课教师信息自动同步。</li>
+        <li>支持 CSV / Excel / JSON 导入（含模板下载与解析预览）与 CSV / Excel 导出。</li>
+        <li>调课记录可添加、删除；「复制本周值日表」同风格的文本便于通知。</li>
+      </ul>
+    `),
+    section('m-meeting-activity', '主题班会与班级活动', `
+      <ul>
+        <li>计划与记录均可添加、编辑、删除；班会记录含地点 / 主持人 / 参与情况，活动记录含地点 / 负责人 / 参与人数。</li>
+        <li>班会计划可一键「转为已开展」。</li>
+        <li>活动照片：把实拍照片放入应用目录 <code>assets/photos/</code>，按记录中引用的文件名命名即可展示，不存入数据库。</li>
+      </ul>
+    `),
+    section('m-search', '搜索小技巧', `
+      <p>所有搜索都支持<b>模糊匹配</b>：输入汉字包含匹配，也支持拼音全拼与首字母。例如搜「张」、输入 <code>zhang</code> 或 <code>zmx</code> 都能找到张同学。</p>
+    `),
+    section('m-data', '数据与备份', `
+      <ul>
+        <li>数据存在浏览器 IndexedDB 中，刷新、重启、断网（桌面版 / PWA）都不丢。</li>
+        <li><b>导出数据</b>：JSON 完整备份（学生 / 工作记录 / 课程表 / 设置）；<b>导入数据</b>可恢复。</li>
+        <li>「设置」里可开启<b>自动备份</b>（每天 / 每周，保留最近 N 份），备份可恢复、下载、删除。</li>
+        <li>换设备 / 清缓存前先导出；「清空数据重新初始化」会删除全部数据并回到向导。</li>
+      </ul>
+    `),
+    section('m-desktop', '桌面端', `
+      <ul>
+        <li><b>Windows 一键启动器</b>：双击 <code>desktop/启动班主任工作台.cmd</code>，自动起服务并以应用窗口打开。</li>
+        <li><b>PWA 安装</b>：通过启动器打开后，浏览器地址栏点「安装」即可像桌面应用一样使用，支持离线。</li>
+        <li><b>exe</b>：<code>desktop/electron/dist/</code> 下已有便携版与免安装版压缩包；重新打包见 <code>desktop/README.md</code>。</li>
+      </ul>
+    `)
+  ].join('');
+
+  const toc = [
+    ['m-quickstart', '快速上手'],
+    ['m-workbench', '工作台首页'],
+    ['m-seating', '座次表'],
+    ['m-duty', '值日表'],
+    ['m-grades', '成绩分析'],
+    ['m-roster', '花名册'],
+    ['m-committee', '班委名单'],
+    ['m-schedule', '课程表'],
+    ['m-meeting-activity', '班会与活动'],
+    ['m-search', '搜索技巧'],
+    ['m-data', '数据与备份'],
+    ['m-desktop', '桌面端']
+  ].map(([id, label]) => `<button class="toc-chip" data-target="${id}" type="button">${label}</button>`).join('');
+
+  byId('content').innerHTML = `
+    <div class="page-head">
+      <div><h2>使用手册</h2><p>${classInfo().className} · 功能参考与常见操作</p></div>
+    </div>
+    <div class="manual-toc card">
+      <span class="toc-label">目录</span>
+      <div class="toc-list">${toc}</div>
+    </div>
+    ${sections}
+    <p class="d-footnote">提示：把鼠标移到任意标题/按钮上通常有说明；各页面右上角「编辑」可进入数据编辑状态。</p>`;
+
+  qsa('.toc-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const el = byId(chip.dataset.target);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
 }
 
 /* ============================================================
@@ -4147,6 +4278,9 @@ function bindDataTools() {
   byId('exportBtn').addEventListener('click', () => openExportDialog());
 
   byId('importBtn').addEventListener('click', openImportDialog);
+  byId('manualBtn').addEventListener('click', () => {
+    location.hash = 'manual';
+  });
 
   byId('settingsBtn').addEventListener('click', openSettingsDrawer);
 }
@@ -4853,10 +4987,10 @@ async function init() {
   window.addEventListener('scroll', hideTodayCourses, true);
 
   const hashPage = location.hash.replace('#', '');
-  if (PAGES.some(p => p.key === hashPage)) state.page = hashPage;
+  if (hashPage === 'manual' || PAGES.some(p => p.key === hashPage)) state.page = hashPage;
   window.addEventListener('hashchange', () => {
     const h = location.hash.replace('#', '');
-    if (PAGES.some(p => p.key === h) && h !== state.page) {
+    if ((h === 'manual' || PAGES.some(p => p.key === h)) && h !== state.page) {
       state.page = h;
       buildSidebar();
       render();
