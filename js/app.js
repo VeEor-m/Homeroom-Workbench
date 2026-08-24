@@ -559,7 +559,7 @@ function renderManual() {
     });
   });
   const replayBtn = byId('manualReplayBtn');
-  if (replayBtn) replayBtn.addEventListener('click', startTour);
+  if (replayBtn) replayBtn.addEventListener('click', replayTour);
 }
 
 /* ============================================================
@@ -679,6 +679,12 @@ function maybeStartTour() {
   if (state.needsInit) return;
   if (!AppData.settings || AppData.settings.tourDone) return;
   setTimeout(startTour, 400);
+}
+
+function replayTour() {
+  const onWorkbench = state.page === 'workbench';
+  if (!onWorkbench) location.hash = 'workbench';
+  setTimeout(startTour, onWorkbench ? 0 : 350);
 }
 
 /* ============================================================
@@ -4588,7 +4594,7 @@ function bindSettingsDrawer() {
   });
 
   const tourBtn = byId('settingsTourBtn');
-  if (tourBtn) tourBtn.addEventListener('click', startTour);
+  if (tourBtn) tourBtn.addEventListener('click', replayTour);
 
   byId('wipeBtn').addEventListener('click', async () => {
     if (!confirm('确定清空所有数据吗？此操作不可恢复。')) return;

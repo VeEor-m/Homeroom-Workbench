@@ -119,8 +119,8 @@ check('使用手册页面', await cdp.eval(`document.querySelector('.page-title'
 check('手册包含核心章节', await cdp.eval(`document.querySelector('#content').textContent.includes('快速上手') && document.querySelector('#content').textContent.includes('数据与备份')`));
 check('手册目录导航', await cdp.eval(`document.querySelectorAll('.toc-chip').length >= 10`));
 await cdp.eval(`document.querySelector('#manualReplayBtn').click()`);
-await sleep(300);
-check('手册可重新播放引导', await cdp.eval(`!!document.querySelector('#tourOverlay')`));
+await sleep(500);
+check('重播引导并跳转工作台', await cdp.eval(`document.querySelector('.page-title').textContent === '工作台' && !!document.querySelector('#tourOverlay')`));
 await cdp.eval(`document.querySelector('#tourSkip').click()`);
 await sleep(200);
 check('引导可跳过', await cdp.eval(`!document.querySelector('#tourOverlay')`));
