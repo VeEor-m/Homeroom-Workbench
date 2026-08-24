@@ -516,19 +516,12 @@ function renderManual() {
     `),
     section('m-data', '数据与备份', `
       <ul>
-        <li>数据存在浏览器 IndexedDB 中，刷新、重启、断网（桌面版 / PWA）都不丢。</li>
+        <li>数据存在浏览器 IndexedDB 中，刷新、重启、断网都不丢。</li>
         <li><b>导出数据</b>：JSON 完整备份（学生 / 工作记录 / 课程表 / 设置）；<b>导入数据</b>可恢复。</li>
         <li>「设置」里可开启<b>自动备份</b>（每天 / 每周，保留最近 N 份），备份可恢复、下载、删除。</li>
         <li>换设备 / 清缓存前先导出；「清空数据重新初始化」会删除全部数据并回到向导。</li>
       </ul>
     `),
-    section('m-desktop', '桌面端', `
-      <ul>
-        <li><b>Windows 一键启动器</b>：双击 <code>desktop/启动班主任工作台.cmd</code>，自动起服务并以应用窗口打开。</li>
-        <li><b>PWA 安装</b>：通过启动器打开后，浏览器地址栏点「安装」即可像桌面应用一样使用，支持离线。</li>
-        <li><b>exe</b>：<code>desktop/electron/dist/</code> 下已有便携版与免安装版压缩包；重新打包见 <code>desktop/README.md</code>。</li>
-      </ul>
-    `)
   ].join('');
 
   const toc = [
@@ -542,8 +535,7 @@ function renderManual() {
     ['m-schedule', '课程表'],
     ['m-meeting-activity', '班会与活动'],
     ['m-search', '搜索技巧'],
-    ['m-data', '数据与备份'],
-    ['m-desktop', '桌面端']
+    ['m-data', '数据与备份']
   ].map(([id, label]) => `<button class="toc-chip" data-target="${id}" type="button">${label}</button>`).join('');
 
   byId('content').innerHTML = `
