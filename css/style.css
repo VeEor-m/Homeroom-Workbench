@@ -1126,6 +1126,84 @@ body.drawer-lock { overflow: hidden; }
   .duty-grid { grid-template-columns: 1fr; }
 }
 
+/* ---------- 班委名单 ---------- */
+.role-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.role-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 12px 14px;
+}
+
+.role-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.role-head strong { font-size: 14px; }
+
+.role-incumbent {
+  margin: 8px 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary-deep);
+}
+
+.role-incumbent.empty { color: var(--muted); font-weight: 400; }
+
+.role-duty {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+  min-height: 2.5em;
+}
+
+.cm-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.cm-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.cm-main { flex: 1; min-width: 0; }
+.cm-main strong { display: block; font-size: 13px; }
+.cm-main span { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; }
+.cm-score {
+  flex: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary-deep);
+}
+
+/* ---------- 家长联系方式 ---------- */
+.tel-link {
+  color: var(--accent-deep);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.tel-link:hover { text-decoration: underline; }
+
 .name-tag {
   display: inline-block;
   background: var(--surface-2);

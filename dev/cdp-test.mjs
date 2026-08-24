@@ -629,6 +629,54 @@ await cdp.eval(`document.querySelector('#dutyAutoBtn').click()`);
 await sleep(500);
 check('自动排班增加周次', await cdp.eval(`D.duty().weeks.length > 1`));
 
+/* ================= 班委名单 ================= */
+await cdp.eval(`location.hash = 'committee'`);
+await sleep(900);
+check('班委名单页面', await cdp.eval(`document.querySelector('.page-title').textContent === '班委名单'`));
+check('职务卡片渲染', await cdp.eval(`document.querySelectorAll('.role-card').length >= 9`));
+const oldLeader = await cdp.eval(`D.students().find(s => s.role === '班长').name`);
+check('班长显示现任', await cdp.eval(`document.querySelector('.role-card .role-incumbent').textContent === '${oldLeader}'`));
+await cdp.shot('13-committee');
+await cdp.eval(`document.querySelector('#committeeChangeBtn').click()`);
+await sleep(300);
+await cdp.eval(`(() => {
+  const m = document.querySelector('.form-modal');
+  const role = m.querySelector('[data-k="role"]');
+  role.value = [...role.options].find(o => o.textContent === '班长').value;
+  m.querySelector('[data-k="name"]').value = '王梓涵';
+  m.querySelector('[data-save]').click();
+})()`);
+await sleep(500);
+check('换届后班长更新', await cdp.eval(`D.studentByName()['王梓涵'].role === '班长'`));
+check('原班长职务清空', await cdp.eval(`D.studentByName()['${oldLeader}'].role === ''`));
+check('换届记录生成', await cdp.eval(`D.committee().changes.some(x => x.role === '班长' && x.name === '王梓涵')`));
+await cdp.eval(`document.querySelector('#committeeAssessBtn').click()`);
+await sleep(300);
+await cdp.eval(`(() => {
+  const m = document.querySelector('.form-modal');
+  m.querySelector('[data-k="date"]').value = '2026-09-30';
+  m.querySelector('[data-k="name"]').value = '王梓涵';
+  m.querySelector('[data-k="role"]').value = '班长';
+  m.querySelector('[data-k="score"]').value = '95';
+  m.querySelector('[data-save]').click();
+})()`);
+await sleep(500);
+check('考核记录添加', await cdp.eval(`D.committee().assessments.some(x => x.name === '王梓涵' && x.score === 95)`));
+
+/* ================= 家长联系方式 ================= */
+await cdp.eval(`location.hash = 'contacts'`);
+await sleep(900);
+check('家长联系方式页面', await cdp.eval(`document.querySelector('.page-title').textContent === '家长联系方式'`));
+check('通讯录 48 行', await cdp.eval(`document.querySelectorAll('.contacts-table tbody tr').length === 48`));
+check('拨打链接存在', await cdp.eval(`!!document.querySelector('.contacts-table a[href^="tel:"]')`));
+const phoneCount = await cdp.eval(`D.students().filter(s => s.phone).length`);
+check('复制按钮与已登记电话一致', await cdp.eval(`document.querySelectorAll('.copy-phone').length === ${phoneCount}`));
+await cdp.shot('14-contacts');
+await cdp.eval(`(() => { const i = document.querySelector('#contactsSearch'); i.value = '王梓涵'; i.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+await sleep(400);
+check('通讯录搜索', await cdp.eval(`document.querySelectorAll('.contacts-table tbody tr').length === 1 && document.querySelector('.contacts-table').textContent.includes('王梓涵')`));
+check('通讯录导出按钮', await cdp.eval(`!!document.querySelector('#contactsCsvBtn') && !!document.querySelector('#contactsXlsxBtn')`));
+
 /* ================= 导入中心（Excel 模板 / 花名册导入） ================= */
 const rosterXlsxPath = 'C:/Users/Administrator/Documents/Codex/2026-08-24/build-x20/outputs/teacher-workbench/assets/templates/花名册模板.xlsx';
 const schedXlsxPath = 'C:/Users/Administrator/Documents/Codex/2026-08-24/build-x20/outputs/teacher-workbench/assets/templates/课程表模板.xlsx';

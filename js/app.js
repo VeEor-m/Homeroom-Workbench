@@ -36,20 +36,12 @@ const PAGES = [
   { key: 'duty', label: '值日表', icon: 'duty', ready: true },
   { key: 'grades', label: '成绩分析', icon: 'grades', ready: true },
   { key: 'roster', label: '花名册', icon: 'roster', ready: true },
-  { key: 'committee', label: '班委名单', icon: 'committee', ready: false },
-  { key: 'contacts', label: '家长联系方式', icon: 'contacts', ready: false },
+  { key: 'committee', label: '班委名单', icon: 'committee', ready: true },
+  { key: 'contacts', label: '家长联系方式', icon: 'contacts', ready: true },
   { key: 'schedule', label: '课程表', icon: 'schedule', ready: true }
 ];
 
 const PLACEHOLDER_INFO = {
-  committee: {
-    icon: 'committee', title: '班委名单', desc: '班委职务与分工模块',
-    points: ['班委职务一览', '职责说明与考核', '换届记录']
-  },
-  contacts: {
-    icon: 'contacts', title: '家长联系方式', desc: '家校通讯录模块',
-    points: ['家长姓名与电话', '一键拨打 / 短信', '按学生快速查找']
-  },
 };
 
 /* ---------- 状态 ---------- */
@@ -77,6 +69,8 @@ const state = {
   gradesEdit: false,
   dutyWeekId: null,
   dutyEdit: false,
+  contactsSearch: '',
+  contactsGroup: 0,
   needsInit: false,
   initStep: 1,
   initOption: null,
@@ -156,7 +150,8 @@ const D = {
   schedule() { return AppData.records.schedule; },
   todos() { return AppData.records.todos; },
   grades() { return AppData.records.grades; },
-  duty() { return AppData.records.duty; }
+  duty() { return AppData.records.duty; },
+  committee() { return AppData.records.committee; }
 };
 
 function cloneSeed(key) {
@@ -359,6 +354,8 @@ function render() {
   else if (state.page === 'roster') renderRoster();
   else if (state.page === 'grades') renderGrades();
   else if (state.page === 'duty') renderDuty();
+  else if (state.page === 'committee') renderCommittee();
+  else if (state.page === 'contacts') renderContacts();
   else if (state.page === 'schedule') renderSchedule();
   else renderPlaceholder(page.key);
 }
@@ -2957,6 +2954,286 @@ function fallbackCopy(text, done) {
 }
 
 /* ============================================================
+ * 班委名单页面
+ * ============================================================ */
+function renderCommittee() {
+  const c = D.committee();
+  const students = D.students();
+  const roleMap = {};
+  students.forEach(s => { if (s.role) roleMap[s.role] = s; });
+
+  const roleCards = c.roles.map(r => {
+    const stu = roleMap[r.role] || null;
+    return `
+      <div class="role-card">
+        <div class="role-head">
+          <strong>${esc(r.role)}</strong>
+          ${stu ? `<span class="avatar small">${avatar(stu.name)}</span>` : '<span class="tag tag-muted">空缺</span>'}
+        </div>
+        <p class="role-incumbent${stu ? '' : ' empty'}">${stu ? esc(stu.name) : '暂无担任'}</p>
+        <p class="role-duty">${esc(r.duty || '职责待补充')}</p>
+        <button class="btn tiny" data-duty="${esc(r.role)}" type="button">编辑职责</button>
+      </div>`;
+  }).join('');
+
+  const extra = students.filter(s => s.role && !c.roles.some(r => r.role === s.role));
+  const incumbentCount = Object.keys(roleMap).filter(role => c.roles.some(r => r.role === role)).length;
+  const emptyCount = c.roles.length - incumbentCount;
+
+  const assessHtml = c.assessments.map((a, i) => `
+    <div class="cm-item">
+      <div class="cm-main">
+        <strong>${esc(a.name)} · ${esc(a.role)}</strong>
+        <span>${esc(a.date)}${a.term ? '｜' + esc(a.term) : ''}${a.note ? '｜' + esc(a.note) : ''}</span>
+      </div>
+      <span class="cm-score">${a.score != null ? a.score + ' 分' : '—'}</span>
+      <button class="del-btn" data-del-assess="${i}" type="button">×</button>
+    </div>`).join('') || '<p class="empty">暂无考核记录</p>';
+
+  const changeHtml = c.changes.map((x, i) => `
+    <div class="cm-item">
+      <div class="cm-main">
+        <strong>${esc(x.role)}：${esc(x.old)} → ${esc(x.name)}</strong>
+        <span>${esc(x.date)}${x.note ? '｜' + esc(x.note) : ''}</span>
+      </div>
+      <button class="del-btn" data-del-change="${i}" type="button">×</button>
+    </div>`).join('') || '<p class="empty">暂无换届记录</p>';
+
+  byId('content').innerHTML = `
+    <div class="page-head">
+      <div><h2>班委名单</h2><p>${classInfo().className} · 班委职务与分工</p></div>
+      <div class="page-actions">
+        <button class="btn primary" id="committeeChangeBtn" type="button">＋ 换届</button>
+        <button class="btn ghost" id="committeeAssessBtn" type="button">＋ 考核记录</button>
+      </div>
+    </div>
+
+    <div class="roster-stats card">
+      <span class="stat-pill"><b>${incumbentCount}</b> 在任班委</span>
+      <span class="stat-pill"><b>${c.roles.length}</b> 个职务</span>
+      <span class="stat-pill warn"><b>${emptyCount}</b> 空缺</span>
+      ${extra.length ? `<span class="stat-pill warn"><b>${extra.length}</b> 其他班委</span>` : ''}
+    </div>
+
+    <div class="role-grid">${roleCards}</div>
+
+    <div class="grade-cols">
+      <div class="card grade-dist">
+        <div class="d-section-head"><h3>考核记录</h3><span class="head-count">${c.assessments.length} 条</span></div>
+        <div class="cm-list">${assessHtml}</div>
+      </div>
+      <div class="card grade-dist">
+        <div class="d-section-head"><h3>换届记录</h3><span class="head-count">${c.changes.length} 条</span></div>
+        <div class="cm-list">${changeHtml}</div>
+      </div>
+    </div>`;
+
+  bindCommitteeEvents();
+}
+
+function bindCommitteeEvents() {
+  qsa('[data-duty]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const role = btn.dataset.duty;
+      const c = D.committee();
+      const item = c.roles.find(r => r.role === role);
+      openFormModal({
+        title: `编辑职责 · ${role}`,
+        fields: [{ k: 'duty', label: '职责说明', type: 'textarea', required: false }]
+      }, { duty: item ? item.duty : '' }, async out => {
+        if (item) item.duty = out.duty;
+        await saveRecord('committee', c);
+        renderCommittee();
+        showToast(`${role} 职责已更新`);
+      });
+    });
+  });
+
+  byId('committeeChangeBtn').addEventListener('click', () => {
+    const c = D.committee();
+    openFormModal({
+      title: '班委换届',
+      fields: [
+        { k: 'role', label: '职务', type: 'select', options: c.roles.map(r => r.role) },
+        { k: 'name', label: '新任学生', type: 'select', options: D.students().map(s => s.name) },
+        { k: 'note', label: '说明', required: false, placeholder: '如 期中调整' }
+      ]
+    }, {}, async out => {
+      const old = D.students().find(s => s.role === out.role);
+      const nxt = D.studentByName()[out.name];
+      if (old) { old.role = ''; await saveStudent(old); }
+      nxt.role = out.role;
+      await saveStudent(nxt);
+      c.changes.push({ date: TODAY, role: out.role, old: old ? old.name : '—', name: out.name, note: out.note });
+      await saveRecord('committee', c);
+      renderCommittee();
+      showToast(`${out.role} 已调整为 ${out.name}`);
+    });
+  });
+
+  byId('committeeAssessBtn').addEventListener('click', () => {
+    const c = D.committee();
+    openFormModal({
+      title: '添加考核记录',
+      fields: [
+        { k: 'date', label: '日期', placeholder: '如 2026-09-30' },
+        { k: 'term', label: '考核期', required: false, placeholder: '如 9 月' },
+        { k: 'name', label: '学生姓名' },
+        { k: 'role', label: '职务', type: 'select', options: c.roles.map(r => r.role) },
+        { k: 'score', label: '评分', required: false, placeholder: '0-100' },
+        { k: 'note', label: '评语', required: false, type: 'textarea' }
+      ]
+    }, {}, async out => {
+      c.assessments.push({ date: out.date || TODAY, term: out.term, name: out.name, role: out.role, score: out.score !== '' ? Number(out.score) : null, note: out.note });
+      await saveRecord('committee', c);
+      renderCommittee();
+      showToast('考核记录已添加');
+    });
+  });
+
+  qsa('[data-del-assess]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('确定删除这条考核记录吗？')) return;
+      const c = D.committee();
+      c.assessments.splice(Number(btn.dataset.delAssess), 1);
+      await saveRecord('committee', c);
+      renderCommittee();
+      showToast('考核记录已删除');
+    });
+  });
+  qsa('[data-del-change]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('确定删除这条换届记录吗？')) return;
+      const c = D.committee();
+      c.changes.splice(Number(btn.dataset.delChange), 1);
+      await saveRecord('committee', c);
+      renderCommittee();
+      showToast('换届记录已删除');
+    });
+  });
+}
+
+/* ============================================================
+ * 家长联系方式页面
+ * ============================================================ */
+function renderContacts() {
+  const q = state.contactsSearch.toLowerCase();
+  const g = state.contactsGroup;
+  const list = D.students().filter(s => {
+    if (g === 0) {
+      // 全部
+    } else if (g === 99) {
+      if (s.row > 0) return false;
+    } else if (s.group !== g) {
+      return false;
+    }
+    if (q && ![s.name, s.parent, s.phone, s.stuNo].some(v => String(v || '').toLowerCase().includes(q))) return false;
+    return true;
+  });
+  const registered = D.students().filter(s => s.phone).length;
+  const groupChips = [0, 1, 2, 3, 4, 5, 6, 7, 8, 99].map(g2 => `
+    <button class="gchip${g2 > 0 && g2 < 99 ? ` g${g2}` : ''}${state.contactsGroup === g2 ? ' on' : ''}" data-group="${g2}" type="button">
+      ${g2 === 0 ? '全部' : g2 === 99 ? '<i class="dot dot-muted"></i>未安排' : `<i class="dot"></i>第 ${g2} 组`}
+    </button>`).join('');
+
+  const rows = list.map(s => `
+    <tr data-sid="${s.id}">
+      <td><span class="avatar small">${avatar(s.name)}</span> ${esc(s.name)}</td>
+      <td class="td-center">${s.group}</td>
+      <td>${esc(s.parent || '—')}</td>
+      <td>
+        ${s.phone
+          ? `<a class="tel-link" href="tel:${esc(s.phone)}">${esc(s.phone)}</a>
+             <button class="btn tiny copy-phone" data-phone="${esc(s.phone)}" type="button">复制</button>`
+          : '<span class="tag tag-muted">未登记</span>'}
+      </td>
+      <td class="td-actions"><button class="btn tiny" data-edit="${s.id}" type="button">编辑</button></td>
+    </tr>`).join('');
+
+  byId('content').innerHTML = `
+    <div class="page-head">
+      <div><h2>家长联系方式</h2><p>${classInfo().className} · 家校通讯录</p></div>
+      <div class="page-actions">
+        <button class="btn ghost" id="contactsCsvBtn" type="button">导出 CSV</button>
+        <button class="btn ghost" id="contactsXlsxBtn" type="button">导出 Excel</button>
+      </div>
+    </div>
+
+    <div class="roster-stats card">
+      <span class="stat-pill"><b>${D.students().length}</b> 学生</span>
+      <span class="stat-pill"><b>${registered}</b> 已登记电话</span>
+      <span class="stat-pill warn"><b>${D.students().length - registered}</b> 未登记</span>
+    </div>
+
+    <div class="seat-toolbar card">
+      <div class="search-box">
+        <span class="search-icon">${ICONS.search}</span>
+        <input id="contactsSearch" type="search" placeholder="按学生 / 家长 / 电话搜索" autocomplete="off" value="${esc(state.contactsSearch)}">
+        <span class="search-count visible" id="contactsCount">${list.length} 人</span>
+      </div>
+      <div class="group-bar">
+        <span class="group-bar-label">按小组筛选</span>
+        <div class="group-chips" id="contactsGroupChips">${groupChips}</div>
+      </div>
+    </div>
+
+    <div class="table-wrap card roster-wrap">
+      <table class="mini-table roster-table contacts-table">
+        <thead><tr><th>姓名</th><th class="td-center">小组</th><th>家长姓名</th><th>联系电话</th><th>操作</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="5"><p class="empty">没有匹配的联系人</p></td></tr>'}</tbody>
+      </table>
+    </div>`;
+
+  bindContactsEvents();
+}
+
+function bindContactsEvents() {
+  byId('contactsSearch').addEventListener('input', e => {
+    state.contactsSearch = e.target.value.trim();
+    renderContacts();
+  });
+  qsa('#contactsGroupChips .gchip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      state.contactsGroup = Number(chip.dataset.group);
+      renderContacts();
+    });
+  });
+  byId('contactsCsvBtn').addEventListener('click', exportContactsCSV);
+  byId('contactsXlsxBtn').addEventListener('click', exportContactsXlsx);
+  qsa('[data-edit]').forEach(btn => {
+    btn.addEventListener('click', () => openStudentForm(btn.dataset.edit));
+  });
+  qsa('.copy-phone').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const text = '家长电话：' + btn.dataset.phone;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => showToast('电话已复制')).catch(() => {});
+      }
+    });
+  });
+}
+
+function exportContactsCSV() {
+  const header = ['姓名', '小组', '家长姓名', '联系电话'];
+  const rows = D.students().map(s => [s.name, s.group, s.parent || '', s.phone || '']);
+  const csv = '\ufeff' + [header.join(',')].concat(rows.map(r => r.join(','))).join('\n');
+  downloadText(csv, `家长联系方式-${classInfo().className}.csv`, 'text/csv;charset=utf-8');
+  showToast('家长联系方式已导出为 CSV');
+}
+
+function exportContactsXlsx() {
+  const header = ['姓名', '小组', '家长姓名', '联系电话'];
+  const rows = D.students().map(s => [s.name, s.group, s.parent || '', s.phone || '']);
+  buildXlsxBlob('家长联系方式', header, rows, [12, 8, 14, 16])
+    .then(blob => {
+      downloadBlob(blob, `家长联系方式-${classInfo().className}.xlsx`);
+      showToast('家长联系方式已导出为 Excel');
+    })
+    .catch(e => showToast('Excel 导出失败：' + e.message, 'warn'));
+}
+
+/* ============================================================
  * 课程表页面
  * ============================================================ */
 const SUBJECTS = ['语文', '数学', '英语', '物理', '化学', '生物', '道德与法治', '历史', '地理', '体育', '音乐', '美术', '信息技术', '劳动', '班会', '自习'];
@@ -4438,7 +4715,12 @@ async function putBlankRecords() {
     },
     todos: [],
     grades: { exams: [] },
-    duty: { tasks: ['扫地', '擦黑板', '摆桌椅', '倒垃圾', '浇花'], weeks: [] }
+    duty: { tasks: ['扫地', '擦黑板', '摆桌椅', '倒垃圾', '浇花'], weeks: [] },
+    committee: {
+      roles: ['班长', '副班长', '学习委员', '纪律委员', '卫生委员', '体育委员', '文艺委员', '宣传委员', '生活委员', '语文课代表', '数学课代表', '英语课代表'].map(role => ({ role, duty: '' })),
+      assessments: [],
+      changes: []
+    }
   };
   for (const k of Object.keys(blank)) await Store.putRecord(k, blank[k]);
 }
