@@ -46,6 +46,6 @@ set CSC_IDENTITY_AUTO_DISCOVERY=false
 npm run pack
 ```
 
-需要 Node.js 与网络（首次安装 Electron 依赖）。产物 `dist/班主任工作台.exe` 是免安装便携版，双击即用；`dist/win-unpacked/` 为免打包解压版（整个文件夹可拷走）。
+需要 Node.js 与网络（首次安装 Electron 依赖）。产物 `dist/班主任工作台.exe` 是免安装便携版，双击即用；`dist/班主任工作台-免安装版.zip` 是解压即用版（解压后双击 `班主任工作台.exe`）；`dist/win-unpacked/` 为免打包解压版（整个文件夹可拷走）。
 
 > 说明：`package.json` 中已设置 `signAndEditExecutable: false`（跳过 exe 图标/版本资源写入，避免部分环境打包失败）。如需自定义 exe 图标与版本信息，可删掉该配置后重打。
