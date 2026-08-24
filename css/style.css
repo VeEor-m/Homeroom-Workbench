@@ -882,6 +882,53 @@ body.drawer-lock { overflow: hidden; }
 .mini-table tr:last-child td { border-bottom: none; }
 .td-center { text-align: center; }
 
+/* ---------- 花名册 ---------- */
+.roster-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+}
+
+.stat-pill {
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 5px 12px;
+  white-space: nowrap;
+}
+
+.stat-pill b {
+  color: var(--primary-deep);
+  font-size: 14px;
+  margin-right: 3px;
+}
+
+.stat-pill.warn b { color: var(--warn); }
+
+.avatar.small {
+  width: 26px;
+  height: 26px;
+  font-size: 11px;
+  display: inline-grid;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.roster-wrap {
+  padding: 6px 10px 10px;
+  overflow-x: auto;
+}
+
+.roster-table tbody tr { cursor: pointer; transition: background .12s; }
+.roster-table tbody tr:hover { background: var(--primary-soft); }
+.td-actions { white-space: nowrap; text-align: right; }
+.td-actions .btn { margin-left: 4px; }
+.dot-muted { background: var(--muted) !important; }
+
 .name-tag {
   display: inline-block;
   background: var(--surface-2);

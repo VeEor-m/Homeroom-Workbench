@@ -310,6 +310,43 @@ await cdp.eval(`document.querySelector('#seatEditBtn').click()`);
 await sleep(350);
 check('刷新后未安排面板保留', await cdp.eval(`document.querySelector('.unseated-panel').textContent.includes('测试新生')`));
 
+/* ================= 花名册 ================= */
+await cdp.eval(`location.hash = 'roster'`);
+await sleep(900);
+check('花名册页面', await cdp.eval(`document.querySelector('.page-title').textContent === '花名册'`));
+check('花名册 48 行', await cdp.eval(`document.querySelectorAll('.roster-table tbody tr').length === 48`));
+check('统计栏显示人数', await cdp.eval(`document.querySelector('.roster-stats').textContent.includes('48')`));
+check('学籍号已生成', await cdp.eval(`document.querySelector('.roster-table tbody tr td strong').textContent.startsWith('2026')`));
+await cdp.shot('10-roster');
+await cdp.eval(`(() => { const i = document.querySelector('#rosterSearch'); i.value = '张明轩'; i.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+await sleep(400);
+check('搜索筛选学生', await cdp.eval(`document.querySelectorAll('.roster-table tbody tr').length === 1 && document.querySelector('.roster-table').textContent.includes('张明轩')`));
+await cdp.eval(`(() => { const i = document.querySelector('#rosterSearch'); i.value = ''; i.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+await sleep(300);
+await cdp.eval(`document.querySelector('#rosterGroupChips .gchip[data-group="2"]').click()`);
+await sleep(300);
+check('小组筛选 6 人', await cdp.eval(`document.querySelectorAll('.roster-table tbody tr').length === 6`));
+await cdp.eval(`document.querySelector('#rosterGroupChips .gchip[data-group="0"]').click()`);
+await sleep(300);
+await cdp.eval(`document.querySelector('.roster-table tbody tr[data-sid="s02"] [data-edit]').click()`);
+await sleep(300);
+check('学生表单打开', await cdp.eval(`!!document.querySelector('.form-modal')`));
+await cdp.eval(`(() => { const m = document.querySelector('.form-modal'); m.querySelector('[data-k="stuNo"]').value = '20269999'; m.querySelector('[data-save]').click(); })()`);
+await sleep(500);
+check('学籍号修改生效', await cdp.eval(`document.querySelector('.roster-table tbody tr[data-sid="s02"] td strong').textContent === '20269999'`));
+await cdp.eval(`document.querySelector('#rosterAddBtn').click()`);
+await sleep(300);
+await cdp.eval(`(() => { const m = document.querySelector('.form-modal'); m.querySelector('[data-k="name"]').value = '花名册测试'; m.querySelector('[data-k="stuNo"]').value = ''; m.querySelector('[data-save]').click(); })()`);
+await sleep(500);
+check('新增后 49 人', await cdp.eval(`document.querySelectorAll('.roster-table tbody tr').length === 49`));
+await cdp.eval(`window.confirm = () => true; document.querySelector('.roster-table tbody tr[data-sid="s49"] [data-del]').click()`);
+await sleep(500);
+check('删除后恢复 48 人', await cdp.eval(`document.querySelectorAll('.roster-table tbody tr').length === 48`));
+await cdp.send('Page.reload', { ignoreCache: true });
+await sleep(1800);
+check('刷新后仍在花名册', await cdp.eval(`document.querySelector('.page-title').textContent === '花名册'`));
+check('学籍号修改持久化', await cdp.eval(`document.querySelector('.roster-table tbody tr[data-sid="s02"] td strong').textContent === '20269999'`));
+
 /* ================= 作业管理 ================= */
 await cdp.eval(`location.hash = 'workbench'`);
 await sleep(800);

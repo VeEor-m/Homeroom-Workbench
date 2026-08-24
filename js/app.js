@@ -35,7 +35,7 @@ const PAGES = [
   { key: 'seating', label: '座次表', icon: 'seating', ready: true },
   { key: 'duty', label: '值日表', icon: 'duty', ready: false },
   { key: 'grades', label: '成绩分析', icon: 'grades', ready: false },
-  { key: 'roster', label: '花名册', icon: 'roster', ready: false },
+  { key: 'roster', label: '花名册', icon: 'roster', ready: true },
   { key: 'committee', label: '班委名单', icon: 'committee', ready: false },
   { key: 'contacts', label: '家长联系方式', icon: 'contacts', ready: false },
   { key: 'schedule', label: '课程表', icon: 'schedule', ready: true }
@@ -49,10 +49,6 @@ const PLACEHOLDER_INFO = {
   grades: {
     icon: 'grades', title: '成绩分析', desc: '考试成绩录入与分析模块',
     points: ['单科 / 总分排名', '进退步对比分析', '学科均衡度雷达图', '成绩单导出']
-  },
-  roster: {
-    icon: 'roster', title: '花名册', desc: '学生基本信息档案模块',
-    points: ['48 名学生完整档案', '基本信息 / 学籍号管理', '按小组快速检索', '档案导出']
   },
   committee: {
     icon: 'committee', title: '班委名单', desc: '班委职务与分工模块',
@@ -81,6 +77,8 @@ const state = {
   exportTab: 'roster',
   rollMarks: {},
   todayHover: false,
+  rosterSearch: '',
+  rosterGroup: 0,
   needsInit: false,
   initStep: 1,
   initOption: null,
@@ -205,6 +203,16 @@ async function loadAllData() {
   }
   if (changed) await Store.putRecord('settings', AppData.settings);
   AppData.students = students;
+  let stuChanged = false;
+  AppData.students.forEach((s, i) => {
+    if (!s.stuNo) {
+      s.stuNo = '2026' + String(i + 1).padStart(4, '0');
+      stuChanged = true;
+    }
+    if (s.row === undefined) { s.row = 0; stuChanged = true; }
+    if (s.col === undefined) { s.col = 0; stuChanged = true; }
+  });
+  if (stuChanged) await Store.putStudents(AppData.students);
   for (const k of RECORD_KEYS) {
     let v = await Store.getRecord(k);
     if (v === undefined) {
@@ -343,6 +351,7 @@ function render() {
 
   if (state.page === 'workbench') renderWorkbench();
   else if (state.page === 'seating') renderSeating();
+  else if (state.page === 'roster') renderRoster();
   else if (state.page === 'schedule') renderSchedule();
   else renderPlaceholder(page.key);
 }
@@ -1164,7 +1173,11 @@ function studentDrawer(sid) {
         </div>
       </div>
     </div>
+    <div class="d-section">
+      <button class="btn primary" id="studentEditBtn" type="button">编辑档案</button>
+    </div>
     <ul class="info-list">
+      <li><span>学籍号</span><strong>${s.stuNo || '—'}</strong></li>
       <li><span>座位</span><strong>${seatText}</strong></li>
       <li><span>小组</span><strong>第 ${s.group} 组</strong></li>
       <li><span>班委职务</span><strong>${s.role || '无'}</strong></li>
@@ -1195,6 +1208,14 @@ function openDrawer(key) {
   }
   const rollBtn = byId('rollcallBtn');
   if (rollBtn) rollBtn.addEventListener('click', openRollCall);
+  const stuEditBtn = byId('studentEditBtn');
+  if (stuEditBtn) {
+    stuEditBtn.addEventListener('click', () => {
+      const sid = state.drawerKey.replace('student:', '');
+      closeDrawer();
+      openStudentForm(sid);
+    });
+  }
   if (state.drawerEditing) enableDrawerEdit(key);
 }
 
@@ -1870,6 +1891,7 @@ function openStudentForm(sid, defRow, defCol) {
       <div class="form-head"><h3>${s ? `编辑学生 · ${s.name}` : '新增学生'}</h3><button class="drawer-close" data-close type="button">${ICONS.x}</button></div>
       <div class="form-body">
         <label class="fm-field"><span>姓名 *</span><input data-k="name" type="text" value="${esc(v.name)}"></label>
+        <label class="fm-field"><span>学籍号</span><input data-k="stuNo" type="text" value="${esc(v.stuNo || '')}" placeholder="如 20260001（可留空自动生成）"></label>
         <label class="fm-field"><span>性别</span>
           <select data-k="gender">
             <option ${v.gender === '男' ? 'selected' : ''}>男</option>
@@ -1921,6 +1943,7 @@ function openStudentForm(sid, defRow, defCol) {
     const stu = {
       id: s ? s.id : nextStudentId(),
       name,
+      stuNo: root.querySelector('[data-k="stuNo"]').value.trim() || '2026' + String(AppData.students.length + 1).padStart(4, '0'),
       gender: root.querySelector('[data-k="gender"]').value,
       group: Number(root.querySelector('[data-k="group"]').value),
       row,
@@ -1931,7 +1954,7 @@ function openStudentForm(sid, defRow, defCol) {
     };
     await saveStudent(stu);
     closeFormModal();
-    renderSeating();
+    render();
   });
 
   const unseatBtn = root.querySelector('#unseatBtn');
@@ -1940,7 +1963,7 @@ function openStudentForm(sid, defRow, defCol) {
       v.row = 0; v.col = 0;
       await saveStudent(v);
       closeFormModal();
-      renderSeating();
+      render();
     });
   }
 
@@ -1950,10 +1973,152 @@ function openStudentForm(sid, defRow, defCol) {
       if (confirm(`确定删除学生「${s.name}」吗？此操作不可恢复。`)) {
         await removeStudent(s.id);
         closeFormModal();
-        renderSeating();
+        render();
       }
     });
   }
+}
+
+/* ============================================================
+ * 花名册页面
+ * ============================================================ */
+function rosterStats() {
+  const list = D.students();
+  const boys = list.filter(s => s.gender === '男').length;
+  const seated = list.filter(s => s.row > 0).length;
+  const leaders = list.filter(s => s.role).length;
+  return { total: list.length, boys, girls: list.length - boys, seated, unseated: list.length - seated, leaders };
+}
+
+function rosterFiltered() {
+  const q = state.rosterSearch.toLowerCase();
+  const g = state.rosterGroup;
+  return D.students().filter(s => {
+    const inGroup = g === 0 ? true : g === 99 ? !s.row : s.group === g;
+    if (!inGroup) return false;
+    if (q && ![s.name, s.stuNo, s.parent, s.phone].some(v => String(v || '').toLowerCase().includes(q))) return false;
+    return true;
+  }).sort((a, b) => {
+    const au = a.row > 0 ? 0 : 1;
+    const bu = b.row > 0 ? 0 : 1;
+    if (au !== bu) return au - bu;
+    if (a.group !== b.group) return a.group - b.group;
+    if (a.row !== b.row) return a.row - b.row;
+    return a.col - b.col;
+  });
+}
+
+function renderRoster() {
+  const stats = rosterStats();
+  const list = rosterFiltered();
+  const groupChips = [0, 1, 2, 3, 4, 5, 6, 7, 8, 99].map(g => `
+    <button class="gchip${g > 0 && g < 99 ? ` g${g}` : ''}${state.rosterGroup === g ? ' on' : ''}" data-group="${g}" type="button">
+      ${g === 0 ? '全部' : g === 99 ? '<i class="dot dot-muted"></i>未安排' : `<i class="dot"></i>第 ${g} 组`}
+    </button>`).join('');
+
+  const rows = list.map(s => {
+    const seat = s.row > 0 ? `${s.row}排${s.col}列` : '未安排';
+    return `
+      <tr data-sid="${s.id}">
+        <td><strong>${esc(s.stuNo || '—')}</strong></td>
+        <td><span class="avatar small">${avatar(s.name)}</span> ${esc(s.name)}</td>
+        <td class="td-center">${s.gender}</td>
+        <td class="td-center">${s.group}</td>
+        <td class="td-center">${seat}</td>
+        <td>${esc(s.role || '—')}</td>
+        <td>${esc(s.parent || '—')}</td>
+        <td>${esc(s.phone || '—')}</td>
+        <td class="td-actions">
+          <button class="btn tiny" data-view="${s.id}" type="button">查看</button>
+          <button class="btn tiny" data-edit="${s.id}" type="button">编辑</button>
+          <button class="btn tiny danger" data-del="${s.id}" type="button">删除</button>
+        </td>
+      </tr>`;
+  }).join('');
+
+  byId('content').innerHTML = `
+    <div class="page-head">
+      <div><h2>花名册</h2><p>${classInfo().className} · 学生档案 · ${stats.total} 人</p></div>
+      <div class="page-actions">
+        <button class="btn ghost" id="rosterCsvBtn" type="button" title="导出花名册为 CSV">导出 CSV</button>
+        <button class="btn ghost" id="rosterXlsxBtn" type="button" title="导出花名册为 Excel">导出 Excel</button>
+        <button class="btn primary" id="rosterAddBtn" type="button">＋ 新增学生</button>
+      </div>
+    </div>
+
+    <div class="roster-stats card">
+      <span class="stat-pill"><b>${stats.total}</b> 总人数</span>
+      <span class="stat-pill"><b>${stats.boys}</b> 男生</span>
+      <span class="stat-pill"><b>${stats.girls}</b> 女生</span>
+      <span class="stat-pill"><b>${stats.seated}</b> 已安排座位</span>
+      <span class="stat-pill warn"><b>${stats.unseated}</b> 未安排</span>
+      <span class="stat-pill"><b>${stats.leaders}</b> 班委</span>
+    </div>
+
+    <div class="seat-toolbar card">
+      <div class="search-box">
+        <span class="search-icon">${ICONS.search}</span>
+        <input id="rosterSearch" type="search" placeholder="按姓名 / 学籍号 / 家长 / 电话搜索" autocomplete="off" value="${esc(state.rosterSearch)}">
+        <span class="search-count visible" id="rosterCount">${list.length} 人</span>
+      </div>
+      <div class="group-bar">
+        <span class="group-bar-label">按小组筛选</span>
+        <div class="group-chips" id="rosterGroupChips">${groupChips}</div>
+      </div>
+    </div>
+
+    <div class="table-wrap card roster-wrap">
+      <table class="mini-table roster-table">
+        <thead>
+          <tr><th>学籍号</th><th>姓名</th><th class="td-center">性别</th><th class="td-center">小组</th><th class="td-center">座位</th><th>班委职务</th><th>家长姓名</th><th>联系电话</th><th>操作</th></tr>
+        </thead>
+        <tbody>${rows || '<tr><td colspan="9"><p class="empty">没有匹配的学生</p></td></tr>'}</tbody>
+      </table>
+    </div>`;
+
+  bindRosterEvents();
+}
+
+function bindRosterEvents() {
+  const search = byId('rosterSearch');
+  search.addEventListener('input', () => {
+    state.rosterSearch = search.value.trim();
+    renderRoster();
+  });
+
+  qsa('#rosterGroupChips .gchip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      state.rosterGroup = Number(chip.dataset.group);
+      renderRoster();
+    });
+  });
+
+  byId('rosterCsvBtn').addEventListener('click', exportRosterCSV);
+  byId('rosterXlsxBtn').addEventListener('click', exportRosterXlsx);
+  byId('rosterAddBtn').addEventListener('click', () => openStudentForm(null, 0, 0));
+
+  qsa('.roster-table tbody tr').forEach(tr => {
+    tr.addEventListener('click', e => {
+      if (e.target.closest('button')) return;
+      openDrawer('student:' + tr.dataset.sid);
+    });
+  });
+  qsa('[data-view]').forEach(btn => {
+    btn.addEventListener('click', () => openDrawer('student:' + btn.dataset.view));
+  });
+  qsa('[data-edit]').forEach(btn => {
+    btn.addEventListener('click', () => openStudentForm(btn.dataset.edit));
+  });
+  qsa('[data-del]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const s = D.studentById()[btn.dataset.del];
+      if (!s) return;
+      if (!confirm(`确定删除学生「${s.name}」吗？此操作不可恢复。`)) return;
+      await removeStudent(s.id);
+      renderRoster();
+      showToast(`已删除「${s.name}」`);
+    });
+  });
 }
 
 /* ============================================================

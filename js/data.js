@@ -71,6 +71,11 @@ const STUDENTS = [
   { id: 's48', name: '沈梦瑶', gender: '女', group: 8, row: 6, col: 8, role: '', parent: '沈军', phone: '150****7788' }
 ];
 
+/* 学籍号：未显式填写时按名单顺序生成 */
+STUDENTS.forEach((s, i) => {
+  s.stuNo = s.stuNo || ('2026' + String(i + 1).padStart(4, '0'));
+});
+
 const studentById = Object.fromEntries(STUDENTS.map(s => [s.id, s]));
 const studentByName = Object.fromEntries(STUDENTS.map(s => [s.name, s]));
 

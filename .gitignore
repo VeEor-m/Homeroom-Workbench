@@ -8,3 +8,7 @@ Thumbs.db
 # 本地生成/调试产物
 dev/*.xlsx
 dev/*.png
+
+# 依赖与构建产物
+desktop/electron/node_modules/
+desktop/electron/dist/
