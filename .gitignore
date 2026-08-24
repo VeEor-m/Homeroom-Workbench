@@ -13,3 +13,9 @@ dev/grade-import-test.csv
 # 依赖与构建产物
 desktop/electron/node_modules/
 desktop/electron/dist/
+desktop/electron/index.html
+desktop/electron/css/
+desktop/electron/js/
+desktop/electron/assets/
+desktop/electron/manifest.webmanifest
+desktop/electron/sw.js
