@@ -52,6 +52,7 @@ assets/photos/         活动照片（当前为占位图，可替换为实拍照
 assets/templates/      花名册 / 课程表的 Excel 模板
 assets/icons/          PWA 应用图标
 preview/               各页面截图预览
+test-data/             测试用假数据（花名册 / 课程表 / 成绩，CSV + Excel）
 dev/                   开发工具：无头浏览器回归测试（cdp-test.mjs）、Edge 启动脚本、Excel 模板与测试数据生成脚本
 ```
 
