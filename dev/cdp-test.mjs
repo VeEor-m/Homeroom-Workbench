@@ -309,6 +309,11 @@ check('刷新后学生 = 48', await cdp.eval(`Store.getAllStudents().then(a => a
 await cdp.eval(`document.querySelector('#seatEditBtn').click()`);
 await sleep(350);
 check('刷新后未安排面板保留', await cdp.eval(`document.querySelector('.unseated-panel').textContent.includes('测试新生')`));
+await cdp.eval(`(() => { const i = document.querySelector('#seatSearch'); i.value = 'zmx'; i.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+await sleep(400);
+check('座位表拼音搜索', await cdp.eval(`document.querySelector('#seatSearchCount').textContent.includes('1 名') && document.querySelector('.seat.found .seat-name').textContent === '张明轩测试'`));
+await cdp.eval(`(() => { const i = document.querySelector('#seatSearch'); i.value = ''; i.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+await sleep(300);
 
 /* ---- 座位布局调整 ---- */
 await cdp.eval(`window.confirm = () => true`);
@@ -354,6 +359,11 @@ await cdp.shot('10-roster');
 await cdp.eval(`(() => { const i = document.querySelector('#rosterSearch'); i.value = '张明轩'; i.dispatchEvent(new Event('input', { bubbles: true })); })()`);
 await sleep(400);
 check('搜索筛选学生', await cdp.eval(`document.querySelectorAll('.roster-table tbody tr').length === 1 && document.querySelector('.roster-table').textContent.includes('张明轩')`));
+await cdp.eval(`(() => { const i = document.querySelector('#rosterSearch'); i.value = ''; i.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+await sleep(300);
+await cdp.eval(`(() => { const i = document.querySelector('#rosterSearch'); i.value = 'wzh'; i.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+await sleep(400);
+check('花名册拼音搜索', await cdp.eval(`document.querySelectorAll('.roster-table tbody tr').length === 1 && document.querySelector('.roster-table').textContent.includes('王梓涵')`));
 await cdp.eval(`(() => { const i = document.querySelector('#rosterSearch'); i.value = ''; i.dispatchEvent(new Event('input', { bubbles: true })); })()`);
 await sleep(300);
 await cdp.eval(`document.querySelector('#rosterGroupChips .gchip[data-group="2"]').click()`);

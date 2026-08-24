@@ -89,6 +89,22 @@ function esc(str) {
   }[c]));
 }
 
+/* 模糊匹配：包含匹配 + 拼音全拼 / 首字母（如 输入 z / zhang / zmx 可匹配 张明轩） */
+function fuzzyMatch(text, query) {
+  const t = String(text || '').toLowerCase();
+  const q = String(query || '').toLowerCase();
+  if (!q) return true;
+  if (t.includes(q)) return true;
+  const chars = [...t];
+  const full = chars.map(c => PINYIN[c] || '').join('');
+  const initials = chars.map(c => (PINYIN[c] || ' ')[0]).join('').replace(/ /g, '');
+  return full.includes(q) || initials.includes(q);
+}
+
+function fuzzyMatchAny(fields, query) {
+  return fields.some(f => fuzzyMatch(f, query));
+}
+
 function weekday(dateStr) {
   return '周' + WEEK_CN[new Date(dateStr + 'T00:00:00').getDay()];
 }
@@ -1884,7 +1900,7 @@ function updateSeatFilter(countEl) {
     const name = nameEl ? nameEl.textContent : '';
     const g = Number(el.dataset.group);
     const inGroup = !hasGroup || (g && state.activeGroups.has(g));
-    const matched = q && name.toLowerCase().includes(q);
+    const matched = q && fuzzyMatch(name, q);
     const isOccupied = !!el.dataset.sid;
 
     el.classList.toggle('active', isOccupied && inGroup);
@@ -2047,7 +2063,7 @@ function rosterFiltered() {
   return D.students().filter(s => {
     const inGroup = g === 0 ? true : g === 99 ? !s.row : s.group === g;
     if (!inGroup) return false;
-    if (q && ![s.name, s.stuNo, s.parent, s.phone].some(v => String(v || '').toLowerCase().includes(q))) return false;
+    if (q && !fuzzyMatchAny([s.name, s.stuNo, s.parent, s.phone], q)) return false;
     return true;
   }).sort((a, b) => {
     const au = a.row > 0 ? 0 : 1;
