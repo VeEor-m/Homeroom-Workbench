@@ -1286,6 +1286,80 @@ body.drawer-lock { overflow: hidden; }
   color: var(--ink);
 }
 
+.manual-replay {
+  text-align: center;
+  margin: 4px 0 10px;
+}
+
+/* ---------- 新手引导 ---------- */
+.tour-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  background: rgba(35, 56, 48, .55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+
+.tour-card {
+  position: relative;
+  z-index: 402;
+  width: min(430px, 94vw);
+  padding: 22px 24px;
+  animation: formIn .18s ease;
+}
+
+.tour-card h3 {
+  margin: 0 0 8px;
+  font-size: 17px;
+  color: var(--primary-deep);
+}
+
+.tour-card p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--ink);
+}
+
+.tour-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin: 16px 0 4px;
+}
+
+.tour-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: background .15s, transform .15s;
+}
+
+.tour-dot.on {
+  background: var(--primary);
+  transform: scale(1.2);
+}
+
+.tour-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.tour-target {
+  position: relative;
+  z-index: 401;
+  outline: 3px solid rgba(93, 155, 130, .95);
+  outline-offset: 3px;
+  border-radius: 10px;
+}
+
 .name-tag {
   display: inline-block;
   background: var(--surface-2);

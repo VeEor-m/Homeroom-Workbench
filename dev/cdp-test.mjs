@@ -84,6 +84,19 @@ await sleep(1200);
 check('向导关闭', await cdp.eval(`document.querySelector('#initScreen').hidden`));
 check('欢迎语显示老师姓名', await cdp.eval(`document.querySelector('.welcome').textContent.includes('测试老师')`));
 
+/* ---- 新手引导 ---- */
+check('新手引导出现', await cdp.eval(`!!document.querySelector('#tourOverlay')`));
+check('引导共 5 步', await cdp.eval(`document.querySelectorAll('.tour-dot').length === 5`));
+for (let i = 0; i < 4; i += 1) {
+  await cdp.eval(`document.querySelector('#tourNext').click()`);
+  await sleep(200);
+}
+check('最后一步为完成', await cdp.eval(`document.querySelector('#tourNext').textContent === '完成'`));
+await cdp.eval(`document.querySelector('#tourNext').click()`);
+await sleep(300);
+check('引导已关闭', await cdp.eval(`!document.querySelector('#tourOverlay')`));
+check('引导完成已记录', await cdp.eval(`Store.getRecord('settings').then(s => s.tourDone === true)`));
+
 /* ---- CSV 解析 ---- */
 check('CSV 解析 2 人', await cdp.eval(`parseRosterCSV('姓名,性别,小组\\n张三,男,2\\n李四,女,3').length === 2`));
 check('CSV 解析姓名正确', await cdp.eval(`parseRosterCSV('姓名,性别,小组\\n张三,男,2').map(s => s.name).join() === '张三'`));
@@ -100,6 +113,12 @@ await sleep(500);
 check('使用手册页面', await cdp.eval(`document.querySelector('.page-title').textContent === '使用手册'`));
 check('手册包含核心章节', await cdp.eval(`document.querySelector('#content').textContent.includes('快速上手') && document.querySelector('#content').textContent.includes('数据与备份')`));
 check('手册目录导航', await cdp.eval(`document.querySelectorAll('.toc-chip').length >= 10`));
+await cdp.eval(`document.querySelector('#manualReplayBtn').click()`);
+await sleep(300);
+check('手册可重新播放引导', await cdp.eval(`!!document.querySelector('#tourOverlay')`));
+await cdp.eval(`document.querySelector('#tourSkip').click()`);
+await sleep(200);
+check('引导可跳过', await cdp.eval(`!document.querySelector('#tourOverlay')`));
 await cdp.eval(`location.hash = 'workbench'`);
 await sleep(500);
 check('返回工作台', await cdp.eval(`document.querySelector('.page-title').textContent === '工作台'`));

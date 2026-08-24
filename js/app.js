@@ -547,7 +547,10 @@ function renderManual() {
       <div class="toc-list">${toc}</div>
     </div>
     ${sections}
-    <p class="d-footnote">提示：把鼠标移到任意标题/按钮上通常有说明；各页面右上角「编辑」可进入数据编辑状态。</p>`;
+    <p class="d-footnote">提示：把鼠标移到任意标题/按钮上通常有说明；各页面右上角「编辑」可进入数据编辑状态。</p>
+    <div class="manual-replay">
+      <button class="btn ghost" id="manualReplayBtn" type="button">重新查看引导卡片</button>
+    </div>`;
 
   qsa('.toc-chip').forEach(chip => {
     chip.addEventListener('click', () => {
@@ -555,6 +558,102 @@ function renderManual() {
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   });
+  const replayBtn = byId('manualReplayBtn');
+  if (replayBtn) replayBtn.addEventListener('click', startTour);
+}
+
+/* ============================================================
+ * 新手引导卡片
+ * ============================================================ */
+const TOUR_STEPS = [
+  {
+    title: '欢迎使用班主任工作台',
+    text: '一站式管理班级日常：考勤、纪律、作业、成绩、座位、值日、班会等都在这里。先带你认识一下页面。',
+    target: ''
+  },
+  {
+    title: '左侧导航',
+    text: '共 7 个功能模块：工作台、座次表、值日表、成绩分析、花名册、班委名单、课程表。点击即可切换。',
+    target: '#sidebar'
+  },
+  {
+    title: '工作卡片',
+    text: '常规工作与特色工作分两块，点击卡片打开详情；详情面板右上角「编辑」可添加、修改、删除数据。',
+    target: '.card-grid'
+  },
+  {
+    title: '顶栏工具',
+    text: '「设置」管理班级信息与自动备份；「导出 / 导入数据」随时备份恢复，重要数据记得定期导出。',
+    target: '.topbar-actions'
+  },
+  {
+    title: '使用手册',
+    text: '随时点顶栏「使用手册」查看完整功能说明，看完这五步就可以开始使用了。',
+    target: '#manualBtn'
+  }
+];
+
+let tourIndex = 0;
+
+function startTour() {
+  if (byId('tourOverlay')) return;
+  tourIndex = 0;
+  const overlay = document.createElement('div');
+  overlay.className = 'tour-overlay';
+  overlay.id = 'tourOverlay';
+  document.body.appendChild(overlay);
+  renderTourStep();
+}
+
+function renderTourStep() {
+  const overlay = byId('tourOverlay');
+  if (!overlay) return;
+  const step = TOUR_STEPS[tourIndex];
+  qsa('.tour-target').forEach(el => el.classList.remove('tour-target'));
+  if (step.target) {
+    const el = document.querySelector(step.target);
+    if (el) {
+      el.classList.add('tour-target');
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+  overlay.innerHTML = `
+    <div class="tour-card card">
+      <h3>${step.title}</h3>
+      <p>${step.text}</p>
+      <div class="tour-dots">${TOUR_STEPS.map((_, i) =>
+        `<span class="tour-dot${i === tourIndex ? ' on' : ''}"></span>`).join('')}</div>
+      <div class="tour-actions">
+        <button class="btn ghost" id="tourSkip" type="button">跳过</button>
+        ${tourIndex > 0 ? '<button class="btn" id="tourPrev" type="button">上一步</button>' : ''}
+        <button class="btn primary" id="tourNext" type="button">${tourIndex === TOUR_STEPS.length - 1 ? '完成' : '下一步'}</button>
+      </div>
+    </div>`;
+
+  byId('tourSkip').addEventListener('click', finishTour);
+  const prevBtn = byId('tourPrev');
+  if (prevBtn) prevBtn.addEventListener('click', () => { tourIndex -= 1; renderTourStep(); });
+  byId('tourNext').addEventListener('click', () => {
+    tourIndex += 1;
+    if (tourIndex >= TOUR_STEPS.length) finishTour();
+    else renderTourStep();
+  });
+}
+
+function finishTour() {
+  const overlay = byId('tourOverlay');
+  if (overlay) overlay.remove();
+  qsa('.tour-target').forEach(el => el.classList.remove('tour-target'));
+  if (AppData.settings && !AppData.settings.tourDone) {
+    AppData.settings.tourDone = true;
+    Store.putRecord('settings', AppData.settings).catch(() => {});
+  }
+}
+
+function maybeStartTour() {
+  if (state.needsInit) return;
+  if (!AppData.settings || AppData.settings.tourDone) return;
+  setTimeout(startTour, 400);
 }
 
 /* ============================================================
@@ -4382,6 +4481,10 @@ function settingsDrawer() {
         <div><strong>侧栏默认折叠</strong><span>下次打开时导航栏默认收起为图标</span></div>
         <label class="switch"><input type="checkbox" id="sidebarCollapsedChk"><i></i></label>
       </div>
+      <div class="setting-row">
+        <div><strong>新手引导</strong><span>重新查看首次使用时的功能引导卡片</span></div>
+        <button class="btn tiny" id="settingsTourBtn" type="button">重新查看</button>
+      </div>
     </div>
 
     <div class="d-section">
@@ -4458,6 +4561,9 @@ function bindSettingsDrawer() {
     try { localStorage.setItem('tw-collapsed', collapsed ? '1' : '0'); } catch (e) { /* 忽略 */ }
     showToast(collapsed ? '导航栏已设为默认折叠' : '导航栏已设为默认展开');
   });
+
+  const tourBtn = byId('settingsTourBtn');
+  if (tourBtn) tourBtn.addEventListener('click', startTour);
 
   byId('wipeBtn').addEventListener('click', async () => {
     if (!confirm('确定清空所有数据吗？此操作不可恢复。')) return;
@@ -4948,6 +5054,7 @@ async function finishInit() {
   refreshTopMeta();
   buildSidebar();
   render();
+  maybeStartTour();
 }
 
 function hideInitScreen() {
@@ -5032,6 +5139,7 @@ async function init() {
 
   buildSidebar();
   render();
+  maybeStartTour();
 }
 
 document.addEventListener('DOMContentLoaded', () => { init(); });
