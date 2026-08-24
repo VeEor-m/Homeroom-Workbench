@@ -40,6 +40,7 @@ js/app.js              导航 / 首页 / 抽屉 / 座次表 / 编辑逻辑
 assets/photos/         活动照片（当前为占位图，可替换为实拍照片）
 assets/templates/      花名册 / 课程表的 Excel 模板
 preview/               各页面截图预览
+dev/                   开发工具：无头浏览器回归测试（cdp-test.mjs）、Edge 启动脚本、Excel 模板与测试数据生成脚本
 ```
 
 ## 数据说明与备份
