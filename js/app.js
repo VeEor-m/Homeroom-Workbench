@@ -594,6 +594,7 @@ const TOUR_STEPS = [
 ];
 
 let tourIndex = 0;
+let tourPlaceTimer = null;
 
 function startTour() {
   if (byId('tourOverlay')) return;
@@ -601,7 +602,14 @@ function startTour() {
   const overlay = document.createElement('div');
   overlay.className = 'tour-overlay';
   overlay.id = 'tourOverlay';
-  document.body.appendChild(overlay);
+  const ring = document.createElement('div');
+  ring.className = 'tour-ring';
+  ring.id = 'tourRing';
+  const card = document.createElement('div');
+  card.className = 'tour-card card';
+  card.id = 'tourCard';
+  document.body.append(overlay, ring, card);
+  window.addEventListener('resize', placeTourRing);
   renderTourStep();
 }
 
@@ -609,25 +617,37 @@ function renderTourStep() {
   const overlay = byId('tourOverlay');
   if (!overlay) return;
   const step = TOUR_STEPS[tourIndex];
-  qsa('.tour-target').forEach(el => el.classList.remove('tour-target'));
+  const ring = byId('tourRing');
+  clearTimeout(tourPlaceTimer);
   if (step.target) {
     const el = document.querySelector(step.target);
     if (el) {
-      el.classList.add('tour-target');
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const place = () => {
+        const r = el.getBoundingClientRect();
+        ring.style.display = 'block';
+        ring.style.left = r.left + 'px';
+        ring.style.top = r.top + 'px';
+        ring.style.width = r.width + 'px';
+        ring.style.height = r.height + 'px';
+      };
+      tourPlaceTimer = setTimeout(place, 320);
+      ring._place = place;
+    } else {
+      ring.style.display = 'none';
     }
+  } else {
+    ring.style.display = 'none';
   }
-  overlay.innerHTML = `
-    <div class="tour-card card">
-      <h3>${step.title}</h3>
-      <p>${step.text}</p>
-      <div class="tour-dots">${TOUR_STEPS.map((_, i) =>
-        `<span class="tour-dot${i === tourIndex ? ' on' : ''}"></span>`).join('')}</div>
-      <div class="tour-actions">
-        <button class="btn ghost" id="tourSkip" type="button">跳过</button>
-        ${tourIndex > 0 ? '<button class="btn" id="tourPrev" type="button">上一步</button>' : ''}
-        <button class="btn primary" id="tourNext" type="button">${tourIndex === TOUR_STEPS.length - 1 ? '完成' : '下一步'}</button>
-      </div>
+  byId('tourCard').innerHTML = `
+    <h3>${step.title}</h3>
+    <p>${step.text}</p>
+    <div class="tour-dots">${TOUR_STEPS.map((_, i) =>
+      `<span class="tour-dot${i === tourIndex ? ' on' : ''}"></span>`).join('')}</div>
+    <div class="tour-actions">
+      <button class="btn ghost" id="tourSkip" type="button">跳过</button>
+      ${tourIndex > 0 ? '<button class="btn" id="tourPrev" type="button">上一步</button>' : ''}
+      <button class="btn primary" id="tourNext" type="button">${tourIndex === TOUR_STEPS.length - 1 ? '完成' : '下一步'}</button>
     </div>`;
 
   byId('tourSkip').addEventListener('click', finishTour);
@@ -641,13 +661,18 @@ function renderTourStep() {
 }
 
 function finishTour() {
-  const overlay = byId('tourOverlay');
-  if (overlay) overlay.remove();
-  qsa('.tour-target').forEach(el => el.classList.remove('tour-target'));
+  clearTimeout(tourPlaceTimer);
+  qsa('#tourOverlay, #tourRing, #tourCard').forEach(el => el.remove());
+  window.removeEventListener('resize', placeTourRing);
   if (AppData.settings && !AppData.settings.tourDone) {
     AppData.settings.tourDone = true;
     Store.putRecord('settings', AppData.settings).catch(() => {});
   }
+}
+
+function placeTourRing() {
+  const ring = byId('tourRing');
+  if (ring && ring._place) ring._place();
 }
 
 function maybeStartTour() {

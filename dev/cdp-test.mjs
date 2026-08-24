@@ -87,7 +87,12 @@ check('欢迎语显示老师姓名', await cdp.eval(`document.querySelector('.we
 /* ---- 新手引导 ---- */
 check('新手引导出现', await cdp.eval(`!!document.querySelector('#tourOverlay')`));
 check('引导共 5 步', await cdp.eval(`document.querySelectorAll('.tour-dot').length === 5`));
-for (let i = 0; i < 4; i += 1) {
+await cdp.eval(`document.querySelector('#tourNext').click()`);
+await sleep(500);
+check('引导卡片独立定位', await cdp.eval(`getComputedStyle(document.querySelector('#tourCard')).position === 'fixed'`));
+check('侧边栏定位不被破坏', await cdp.eval(`getComputedStyle(document.querySelector('#sidebar')).position === 'fixed'`));
+check('高亮圈显示', await cdp.eval(`document.querySelector('#tourRing').style.display === 'block'`));
+for (let i = 0; i < 3; i += 1) {
   await cdp.eval(`document.querySelector('#tourNext').click()`);
   await sleep(200);
 }

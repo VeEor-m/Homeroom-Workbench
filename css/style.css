@@ -1297,14 +1297,13 @@ body.drawer-lock { overflow: hidden; }
   inset: 0;
   z-index: 400;
   background: rgba(35, 56, 48, .55);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 18px;
 }
 
 .tour-card {
-  position: relative;
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   z-index: 402;
   width: min(430px, 94vw);
   padding: 22px 24px;
@@ -1352,12 +1351,14 @@ body.drawer-lock { overflow: hidden; }
   margin-top: 14px;
 }
 
-.tour-target {
-  position: relative;
+.tour-ring {
+  position: fixed;
   z-index: 401;
-  outline: 3px solid rgba(93, 155, 130, .95);
-  outline-offset: 3px;
-  border-radius: 10px;
+  pointer-events: none;
+  display: none;
+  border: 3px solid rgba(93, 155, 130, .95);
+  border-radius: 12px;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, .65);
 }
 
 .name-tag {
