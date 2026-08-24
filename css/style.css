@@ -1195,14 +1195,12 @@ body.drawer-lock { overflow: hidden; }
   color: var(--primary-deep);
 }
 
-/* ---------- 家长联系方式 ---------- */
-.tel-link {
-  color: var(--accent-deep);
-  text-decoration: none;
-  font-weight: 500;
+.phone-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
 }
-
-.tel-link:hover { text-decoration: underline; }
 
 .name-tag {
   display: inline-block;

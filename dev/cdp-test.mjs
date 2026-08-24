@@ -88,7 +88,7 @@ check('欢迎语显示老师姓名', await cdp.eval(`document.querySelector('.we
 check('CSV 解析 2 人', await cdp.eval(`parseRosterCSV('姓名,性别,小组\\n张三,男,2\\n李四,女,3').length === 2`));
 check('CSV 解析姓名正确', await cdp.eval(`parseRosterCSV('姓名,性别,小组\\n张三,男,2').map(s => s.name).join() === '张三'`));
 
-check('导航项 = 8', await cdp.eval(`document.querySelectorAll('.nav-item').length === 8`));
+check('导航项 = 7', await cdp.eval(`document.querySelectorAll('.nav-item').length === 7`));
 check('工作卡片 = 8', await cdp.eval(`document.querySelectorAll('.work-card').length === 8`));
 check('首次播种学生 = 48', await cdp.eval(`Store.getAllStudents().then(a => a.length)`));
 check('记录键 = 10', await cdp.eval(`Store.exportData().then(d => Object.keys(d.records).length)`));
@@ -349,6 +349,7 @@ check('花名册页面', await cdp.eval(`document.querySelector('.page-title').t
 check('花名册 48 行', await cdp.eval(`document.querySelectorAll('.roster-table tbody tr').length === 48`));
 check('统计栏显示人数', await cdp.eval(`document.querySelector('.roster-stats').textContent.includes('48')`));
 check('学籍号已生成', await cdp.eval(`document.querySelector('.roster-table tbody tr td strong').textContent.startsWith('2026')`));
+check('联系电话复制按钮', await cdp.eval(`document.querySelectorAll('.roster-table .copy-phone').length === D.students().filter(s => s.phone).length`));
 await cdp.shot('10-roster');
 await cdp.eval(`(() => { const i = document.querySelector('#rosterSearch'); i.value = '张明轩'; i.dispatchEvent(new Event('input', { bubbles: true })); })()`);
 await sleep(400);
@@ -662,20 +663,6 @@ await cdp.eval(`(() => {
 })()`);
 await sleep(500);
 check('考核记录添加', await cdp.eval(`D.committee().assessments.some(x => x.name === '王梓涵' && x.score === 95)`));
-
-/* ================= 家长联系方式 ================= */
-await cdp.eval(`location.hash = 'contacts'`);
-await sleep(900);
-check('家长联系方式页面', await cdp.eval(`document.querySelector('.page-title').textContent === '家长联系方式'`));
-check('通讯录 48 行', await cdp.eval(`document.querySelectorAll('.contacts-table tbody tr').length === 48`));
-check('拨打链接存在', await cdp.eval(`!!document.querySelector('.contacts-table a[href^="tel:"]')`));
-const phoneCount = await cdp.eval(`D.students().filter(s => s.phone).length`);
-check('复制按钮与已登记电话一致', await cdp.eval(`document.querySelectorAll('.copy-phone').length === ${phoneCount}`));
-await cdp.shot('14-contacts');
-await cdp.eval(`(() => { const i = document.querySelector('#contactsSearch'); i.value = '王梓涵'; i.dispatchEvent(new Event('input', { bubbles: true })); })()`);
-await sleep(400);
-check('通讯录搜索', await cdp.eval(`document.querySelectorAll('.contacts-table tbody tr').length === 1 && document.querySelector('.contacts-table').textContent.includes('王梓涵')`));
-check('通讯录导出按钮', await cdp.eval(`!!document.querySelector('#contactsCsvBtn') && !!document.querySelector('#contactsXlsxBtn')`));
 
 /* ================= 导入中心（Excel 模板 / 花名册导入） ================= */
 const rosterXlsxPath = 'C:/Users/Administrator/Documents/Codex/2026-08-24/build-x20/outputs/teacher-workbench/assets/templates/花名册模板.xlsx';

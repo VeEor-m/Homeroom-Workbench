@@ -37,7 +37,6 @@ const PAGES = [
   { key: 'grades', label: '成绩分析', icon: 'grades', ready: true },
   { key: 'roster', label: '花名册', icon: 'roster', ready: true },
   { key: 'committee', label: '班委名单', icon: 'committee', ready: true },
-  { key: 'contacts', label: '家长联系方式', icon: 'contacts', ready: true },
   { key: 'schedule', label: '课程表', icon: 'schedule', ready: true }
 ];
 
@@ -69,8 +68,6 @@ const state = {
   gradesEdit: false,
   dutyWeekId: null,
   dutyEdit: false,
-  contactsSearch: '',
-  contactsGroup: 0,
   needsInit: false,
   initStep: 1,
   initOption: null,
@@ -355,7 +352,6 @@ function render() {
   else if (state.page === 'grades') renderGrades();
   else if (state.page === 'duty') renderDuty();
   else if (state.page === 'committee') renderCommittee();
-  else if (state.page === 'contacts') renderContacts();
   else if (state.page === 'schedule') renderSchedule();
   else renderPlaceholder(page.key);
 }
@@ -2082,7 +2078,9 @@ function renderRoster() {
         <td class="td-center">${seat}</td>
         <td>${esc(s.role || '—')}</td>
         <td>${esc(s.parent || '—')}</td>
-        <td>${esc(s.phone || '—')}</td>
+        <td>${s.phone
+          ? `<span class="phone-cell">${esc(s.phone)}<button class="btn tiny copy-phone" data-phone="${esc(s.phone)}" type="button" title="复制电话">复制</button></span>`
+          : '—'}</td>
         <td class="td-actions">
           <button class="btn tiny" data-view="${s.id}" type="button">查看</button>
           <button class="btn tiny" data-edit="${s.id}" type="button">编辑</button>
@@ -2172,6 +2170,15 @@ function bindRosterEvents() {
       await removeStudent(s.id);
       renderRoster();
       showToast(`已删除「${s.name}」`);
+    });
+  });
+  qsa('.roster-table .copy-phone').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const text = '家长电话：' + btn.dataset.phone;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => showToast('电话已复制')).catch(() => {});
+      }
     });
   });
 }
@@ -3111,126 +3118,6 @@ function bindCommitteeEvents() {
       showToast('换届记录已删除');
     });
   });
-}
-
-/* ============================================================
- * 家长联系方式页面
- * ============================================================ */
-function renderContacts() {
-  const q = state.contactsSearch.toLowerCase();
-  const g = state.contactsGroup;
-  const list = D.students().filter(s => {
-    if (g === 0) {
-      // 全部
-    } else if (g === 99) {
-      if (s.row > 0) return false;
-    } else if (s.group !== g) {
-      return false;
-    }
-    if (q && ![s.name, s.parent, s.phone, s.stuNo].some(v => String(v || '').toLowerCase().includes(q))) return false;
-    return true;
-  });
-  const registered = D.students().filter(s => s.phone).length;
-  const groupChips = [0, 1, 2, 3, 4, 5, 6, 7, 8, 99].map(g2 => `
-    <button class="gchip${g2 > 0 && g2 < 99 ? ` g${g2}` : ''}${state.contactsGroup === g2 ? ' on' : ''}" data-group="${g2}" type="button">
-      ${g2 === 0 ? '全部' : g2 === 99 ? '<i class="dot dot-muted"></i>未安排' : `<i class="dot"></i>第 ${g2} 组`}
-    </button>`).join('');
-
-  const rows = list.map(s => `
-    <tr data-sid="${s.id}">
-      <td><span class="avatar small">${avatar(s.name)}</span> ${esc(s.name)}</td>
-      <td class="td-center">${s.group}</td>
-      <td>${esc(s.parent || '—')}</td>
-      <td>
-        ${s.phone
-          ? `<a class="tel-link" href="tel:${esc(s.phone)}">${esc(s.phone)}</a>
-             <button class="btn tiny copy-phone" data-phone="${esc(s.phone)}" type="button">复制</button>`
-          : '<span class="tag tag-muted">未登记</span>'}
-      </td>
-      <td class="td-actions"><button class="btn tiny" data-edit="${s.id}" type="button">编辑</button></td>
-    </tr>`).join('');
-
-  byId('content').innerHTML = `
-    <div class="page-head">
-      <div><h2>家长联系方式</h2><p>${classInfo().className} · 家校通讯录</p></div>
-      <div class="page-actions">
-        <button class="btn ghost" id="contactsCsvBtn" type="button">导出 CSV</button>
-        <button class="btn ghost" id="contactsXlsxBtn" type="button">导出 Excel</button>
-      </div>
-    </div>
-
-    <div class="roster-stats card">
-      <span class="stat-pill"><b>${D.students().length}</b> 学生</span>
-      <span class="stat-pill"><b>${registered}</b> 已登记电话</span>
-      <span class="stat-pill warn"><b>${D.students().length - registered}</b> 未登记</span>
-    </div>
-
-    <div class="seat-toolbar card">
-      <div class="search-box">
-        <span class="search-icon">${ICONS.search}</span>
-        <input id="contactsSearch" type="search" placeholder="按学生 / 家长 / 电话搜索" autocomplete="off" value="${esc(state.contactsSearch)}">
-        <span class="search-count visible" id="contactsCount">${list.length} 人</span>
-      </div>
-      <div class="group-bar">
-        <span class="group-bar-label">按小组筛选</span>
-        <div class="group-chips" id="contactsGroupChips">${groupChips}</div>
-      </div>
-    </div>
-
-    <div class="table-wrap card roster-wrap">
-      <table class="mini-table roster-table contacts-table">
-        <thead><tr><th>姓名</th><th class="td-center">小组</th><th>家长姓名</th><th>联系电话</th><th>操作</th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="5"><p class="empty">没有匹配的联系人</p></td></tr>'}</tbody>
-      </table>
-    </div>`;
-
-  bindContactsEvents();
-}
-
-function bindContactsEvents() {
-  byId('contactsSearch').addEventListener('input', e => {
-    state.contactsSearch = e.target.value.trim();
-    renderContacts();
-  });
-  qsa('#contactsGroupChips .gchip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      state.contactsGroup = Number(chip.dataset.group);
-      renderContacts();
-    });
-  });
-  byId('contactsCsvBtn').addEventListener('click', exportContactsCSV);
-  byId('contactsXlsxBtn').addEventListener('click', exportContactsXlsx);
-  qsa('[data-edit]').forEach(btn => {
-    btn.addEventListener('click', () => openStudentForm(btn.dataset.edit));
-  });
-  qsa('.copy-phone').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      const text = '家长电话：' + btn.dataset.phone;
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(() => showToast('电话已复制')).catch(() => {});
-      }
-    });
-  });
-}
-
-function exportContactsCSV() {
-  const header = ['姓名', '小组', '家长姓名', '联系电话'];
-  const rows = D.students().map(s => [s.name, s.group, s.parent || '', s.phone || '']);
-  const csv = '\ufeff' + [header.join(',')].concat(rows.map(r => r.join(','))).join('\n');
-  downloadText(csv, `家长联系方式-${classInfo().className}.csv`, 'text/csv;charset=utf-8');
-  showToast('家长联系方式已导出为 CSV');
-}
-
-function exportContactsXlsx() {
-  const header = ['姓名', '小组', '家长姓名', '联系电话'];
-  const rows = D.students().map(s => [s.name, s.group, s.parent || '', s.phone || '']);
-  buildXlsxBlob('家长联系方式', header, rows, [12, 8, 14, 16])
-    .then(blob => {
-      downloadBlob(blob, `家长联系方式-${classInfo().className}.xlsx`);
-      showToast('家长联系方式已导出为 Excel');
-    })
-    .catch(e => showToast('Excel 导出失败：' + e.message, 'warn'));
 }
 
 /* ============================================================
