@@ -10,6 +10,12 @@
 python -m http.server 8080
 ```
 
+## 桌面端
+
+- **PWA 安装版**：通过本地服务打开后，在 Edge / Chrome 地址栏右侧点「安装」即可像桌面应用一样安装，支持离线打开（Service Worker 自动缓存）。
+- **Windows 一键启动器**：双击 `desktop/启动班主任工作台.cmd`——自动启动本地服务（Node，缺省回退 Python）并用 Edge「应用模式」打开独立窗口（无浏览器工具栏）；可运行 `desktop/创建桌面快捷方式.cmd` 生成桌面图标，`desktop/停止服务.cmd` 关闭后台服务。
+- **Electron 打包**：`desktop/electron/` 内含最小工程，`npm install && npm start` 直接运行，打包 exe 步骤见 `desktop/README.md`。
+
 ## 已实现功能
 
 - **整体布局**：左侧固定导航（8 个菜单项），右侧主内容区；浅绿 / 浅蓝 / 米白配色；平板适配，侧栏可折叠（桌面端）或抽屉式滑出（窄屏）。
@@ -33,12 +39,16 @@ python -m http.server 8080
 
 ```text
 index.html             页面骨架
+manifest.webmanifest   PWA 清单（安装为桌面应用）
+sw.js                  Service Worker（离线缓存）
 css/style.css          全部样式（含响应式）
 js/data.js             班级与学生模拟数据（首次播种用）
 js/store.js            IndexedDB 持久化层（学生 + 工作记录 + 备份导入导出）
 js/app.js              导航 / 首页 / 抽屉 / 座次表 / 编辑逻辑
+desktop/               Windows 启动器与 Electron 桌面端工程
 assets/photos/         活动照片（当前为占位图，可替换为实拍照片）
 assets/templates/      花名册 / 课程表的 Excel 模板
+assets/icons/          PWA 应用图标
 preview/               各页面截图预览
 dev/                   开发工具：无头浏览器回归测试（cdp-test.mjs）、Edge 启动脚本、Excel 模板与测试数据生成脚本
 ```

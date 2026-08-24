@@ -1,0 +1,31 @@
+{
+  "name": "homeroom-workbench-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "班主任工作台 · 桌面版（Electron）",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --win portable"
+  },
+  "build": {
+    "appId": "com.homeroom.workbench",
+    "productName": "班主任工作台",
+    "files": [
+      "main.js",
+      "index.html",
+      "css/**",
+      "js/**",
+      "assets/**",
+      "manifest.webmanifest",
+      "sw.js"
+    ],
+    "win": {
+      "target": "portable"
+    }
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  }
+}

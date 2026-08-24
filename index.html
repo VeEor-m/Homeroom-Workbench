@@ -4,10 +4,21 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="中学班主任工作台 - 班级日常管理一体化工具">
+  <meta name="theme-color" content="#5d9b82">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="assets/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
   <title>班主任工作台 · 初三（2）班</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <script>
+    if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+  </script>
   <div class="app" id="app">
 
     <!-- 左侧固定导航栏 -->
