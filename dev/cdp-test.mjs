@@ -183,12 +183,19 @@ await sleep(300);
 check('表单弹窗打开', await cdp.eval(`!!document.querySelector('.form-modal')`));
 await cdp.eval(`(() => {
   const m = document.querySelector('.form-modal');
-  m.querySelector('[data-k="name"]').value = '测试迟到';
+  m.querySelector('[data-k="name"]').value = '不存在的人';
   m.querySelector('[data-k="time"]').value = '08:00';
   m.querySelector('[data-save]').click();
 })()`);
+await sleep(300);
+check('不存在学生被拦截', await cdp.eval(`document.querySelector('.form-modal .form-error').textContent.includes('未找到学生')`));
+await cdp.eval(`(() => {
+  const m = document.querySelector('.form-modal');
+  m.querySelector('[data-k="name"]').value = '陈欣怡';
+  m.querySelector('[data-save]').click();
+})()`);
 await sleep(500);
-check('迟到名单新增成功', await cdp.eval(`document.querySelector('#drawer').textContent.includes('测试迟到')`));
+check('迟到名单新增成功', await cdp.eval(`document.querySelector('#drawer').textContent.includes('陈欣怡')`));
 check('迟到统计更新为 3', await cdp.eval(`document.querySelectorAll('.d-section[data-editor="attendance-late"] .plain-list li').length === 3`));
 await cdp.shot('02-attendance-edit');
 
@@ -207,6 +214,8 @@ check('初始状态来自记录（王梓涵迟到）', await cdp.eval(`document.
 await cdp.eval(`(() => { const r = document.querySelector('.roll-row[data-sid="s37"]'); for (let i = 0; i < 3; i++) r.click(); })()`);
 await sleep(200);
 check('点 3 次由迟到回到“到”', await cdp.eval(`document.querySelector('.roll-row[data-sid="s37"]').dataset.status === 'present'`));
+await cdp.eval(`(() => { const r = document.querySelector('.roll-row[data-sid="s05"]'); for (let i = 0; i < 3; i++) r.click(); })()`);
+await sleep(200);
 await cdp.eval(`document.querySelector('.roll-row[data-sid="s01"]').click()`);
 await sleep(200);
 check('张明轩标记为迟到', await cdp.eval(`document.querySelector('.roll-row[data-sid="s01"]').dataset.status === 'late'`));
@@ -404,12 +413,27 @@ await sleep(300);
 check('作业管理弹窗', await cdp.eval(`document.querySelector('.form-card').textContent.includes('未交名单')`));
 await cdp.eval(`(() => {
   const m = document.querySelector('.form-modal');
-  m.querySelector('#hwName').value = '测试未交';
+  m.querySelector('#hwName').value = '不存在的人';
+  m.querySelector('#hwAdd').click();
+})()`);
+await sleep(300);
+check('作业不存在学生被拦截', await cdp.eval(`document.querySelector('.form-modal .form-error').textContent.includes('未找到学生')`));
+await cdp.eval(`(() => {
+  const m = document.querySelector('.form-modal');
+  m.querySelector('#hwName').value = '王梓';
+  m.querySelector('#hwName').dispatchEvent(new Event('input', { bubbles: true }));
+})()`);
+await sleep(300);
+check('作业姓名联想出现', await cdp.eval(`document.querySelectorAll('.student-suggest.show button').length >= 1`));
+await cdp.eval(`(() => {
+  const m = document.querySelector('.form-modal');
+  const btn = [...m.querySelectorAll('.student-suggest.show button')].find(b => b.dataset.name === '王梓涵');
+  btn.click();
   m.querySelector('#hwAdd').click();
   m.querySelector('#hwDone').click();
 })()`);
 await sleep(600);
-check('未交名单新增成功', await cdp.eval(`document.querySelector('#drawer').textContent.includes('测试未交')`));
+check('未交名单新增成功', await cdp.eval(`document.querySelector('#drawer').textContent.includes('王梓涵')`));
 check('收缴率自动重算', await cdp.eval(`document.querySelector('#drawer').textContent.includes('91.7%')`));
 await cdp.shot('06-homework-edit');
 await cdp.eval(`document.querySelector('.drawer-close').click()`);

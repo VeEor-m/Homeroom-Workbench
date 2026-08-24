@@ -105,6 +105,51 @@ function fuzzyMatchAny(fields, query) {
   return fields.some(f => fuzzyMatch(f, query));
 }
 
+function studentNameExists(name) {
+  return !!D.studentByName()[String(name || '').trim()];
+}
+
+/* 学生姓名联想输入：输入汉字 / 拼音，从候选列表选择 */
+function attachStudentSuggest(input, opts = {}) {
+  const wrap = input.parentElement;
+  wrap.classList.add('fm-field-with-suggest');
+  const box = document.createElement('div');
+  box.className = 'student-suggest';
+  wrap.appendChild(box);
+
+  const render = () => {
+    const v = input.value.trim();
+    if (!v) {
+      box.innerHTML = '';
+      box.classList.remove('show');
+      return;
+    }
+    const matches = D.students().filter(s => fuzzyMatch(s.name, v)).slice(0, 8);
+    box.innerHTML = matches.map(s => `
+      <button type="button" data-name="${esc(s.name)}">
+        <span>${esc(s.name)}</span><small>第 ${s.group} 组</small>
+      </button>`).join('');
+    box.classList.toggle('show', matches.length > 0);
+    qsa('button', box).forEach(b => {
+      b.addEventListener('mousedown', e => e.preventDefault());
+      b.addEventListener('click', () => {
+        input.value = b.dataset.name;
+        box.innerHTML = '';
+        box.classList.remove('show');
+        if (opts.onPick) opts.onPick(b.dataset.name);
+        input.focus();
+      });
+    });
+  };
+
+  input.addEventListener('input', render);
+  input.addEventListener('blur', () => setTimeout(() => box.classList.remove('show'), 150));
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Escape') box.classList.remove('show');
+  });
+  return { refresh: render };
+}
+
 function weekday(dateStr) {
   return '周' + WEEK_CN[new Date(dateStr + 'T00:00:00').getDay()];
 }
@@ -1254,28 +1299,28 @@ const EDITOR_FORMS = {
   'attendance-late': {
     title: '添加迟到记录',
     fields: [
-      { k: 'name', label: '学生姓名' },
+      { k: 'name', label: '学生姓名', student: true },
       { k: 'time', label: '迟到时间', placeholder: '如 07:42' }
     ]
   },
   'attendance-leave': {
     title: '添加请假记录',
     fields: [
-      { k: 'name', label: '学生姓名' },
+      { k: 'name', label: '学生姓名', student: true },
       { k: 'reason', label: '请假原因', placeholder: '如 病假' }
     ]
   },
   'attendance-absent': {
     title: '添加缺勤记录',
     fields: [
-      { k: 'name', label: '学生姓名' },
+      { k: 'name', label: '学生姓名', student: true },
       { k: 'note', label: '备注', placeholder: '如 未请假，待核实' }
     ]
   },
   'discipline-praise': {
     title: '添加表扬记录',
     fields: [
-      { k: 'name', label: '学生姓名' },
+      { k: 'name', label: '学生姓名', student: true },
       { k: 'scene', label: '场合', placeholder: '如 数学课' },
       { k: 'reason', label: '表扬原因' }
     ]
@@ -1283,7 +1328,7 @@ const EDITOR_FORMS = {
   'discipline-focus': {
     title: '添加需关注学生',
     fields: [
-      { k: 'name', label: '学生姓名' },
+      { k: 'name', label: '学生姓名', student: true },
       { k: 'issue', label: '问题表现' },
       { k: 'note', label: '跟进建议' }
     ]
@@ -1327,7 +1372,7 @@ const EDITOR_FORMS = {
     title: '添加沟通记录',
     fields: [
       { k: 'date', label: '日期', placeholder: '如 08-22' },
-      { k: 'student', label: '学生姓名' },
+      { k: 'student', label: '学生姓名', student: true },
       { k: 'method', label: '沟通方式', placeholder: '如 电话 / 微信 / 面谈' },
       { k: 'content', label: '沟通内容', type: 'textarea' },
       { k: 'result', label: '结果', placeholder: '如 已沟通' }
@@ -1336,7 +1381,7 @@ const EDITOR_FORMS = {
   'communication-visit': {
     title: '添加家访计划',
     fields: [
-      { k: 'student', label: '学生姓名' },
+      { k: 'student', label: '学生姓名', student: true },
       { k: 'reason', label: '家访原因' },
       { k: 'planDate', label: '计划日期', placeholder: '如 09-05' },
       { k: 'status', label: '状态', placeholder: '如 待安排' }
@@ -1346,7 +1391,7 @@ const EDITOR_FORMS = {
     title: '添加辅导记录',
     fields: [
       { k: 'date', label: '日期' },
-      { k: 'student', label: '学生姓名' },
+      { k: 'student', label: '学生姓名', student: true },
       { k: 'type', label: '类型', placeholder: '如 学业辅导 / 心理疏导' },
       { k: 'content', label: '内容', type: 'textarea' }
     ]
@@ -1534,6 +1579,13 @@ function openFormModal(cfg, values, onSave) {
     </div>`;
   document.body.appendChild(root);
 
+  cfg.fields.forEach(f => {
+    if (f.student) {
+      const inp = root.querySelector(`[data-k="${f.k}"]`);
+      if (inp) attachStudentSuggest(inp);
+    }
+  });
+
   qsa('[data-close]', root).forEach(el => el.addEventListener('click', closeFormModal));
   const err = root.querySelector('.form-error');
   root.querySelector('[data-save]').addEventListener('click', async () => {
@@ -1543,6 +1595,11 @@ function openFormModal(cfg, values, onSave) {
       out[f.k] = (el.value || '').trim();
       if (f.required !== false && !out[f.k]) {
         showFormError(err, `请填写「${f.label}」`);
+        el.focus();
+        return;
+      }
+      if (f.student && !studentNameExists(out[f.k])) {
+        showFormError(err, `未找到学生「${out[f.k]}」，请从候选中选择`);
         el.focus();
         return;
       }
@@ -1584,6 +1641,8 @@ function openHomeworkEditor(subject) {
 
   const chipsEl = root.querySelector('#hwChips');
   const err = root.querySelector('.form-error');
+  const hwInput = root.querySelector('#hwName');
+  if (hwInput) attachStudentSuggest(hwInput);
   const renderChips = () => {
     chipsEl.innerHTML = row.missing.map(n => `
       <span class="name-tag">${esc(n)}<button class="del-btn" data-del="${esc(n)}" type="button">×</button></span>
@@ -1598,11 +1657,16 @@ function openHomeworkEditor(subject) {
   renderChips();
 
   root.querySelector('#hwAdd').addEventListener('click', () => {
-    const name = (root.querySelector('#hwName').value || '').trim();
+    const name = (hwInput.value || '').trim();
     if (!name) { showFormError(err, '请输入学生姓名'); return; }
+    if (!studentNameExists(name)) {
+      showFormError(err, `未找到学生「${name}」，请从候选中选择`);
+      return;
+    }
     if (row.missing.includes(name)) { showFormError(err, `「${name}」已在名单中`); return; }
     row.missing.push(name);
-    root.querySelector('#hwName').value = '';
+    hwInput.value = '';
+    hwInput.dispatchEvent(new Event('input', { bubbles: true }));
     err.hidden = true;
     renderChips();
   });

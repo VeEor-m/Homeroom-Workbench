@@ -1581,9 +1581,48 @@ body.drawer-lock { overflow: hidden; }
   display: flex;
   gap: 8px;
   margin-top: 4px;
+  position: relative;
 }
 
 .hw-add input { flex: 1; min-width: 0; }
+
+/* 学生姓名联想 */
+.fm-field-with-suggest { position: relative; }
+
+.student-suggest {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-lg);
+  max-height: 220px;
+  overflow-y: auto;
+  display: none;
+}
+
+.student-suggest.show { display: block; }
+
+.student-suggest button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--ink);
+  text-align: left;
+}
+
+.student-suggest button:hover { background: var(--primary-soft); }
+.student-suggest small { color: var(--muted); font-size: 11px; }
 
 /* ---------- 早读点名 ---------- */
 .rollcall-btn { width: 100%; padding: 11px; font-size: 14px; }
