@@ -310,6 +310,38 @@ await cdp.eval(`document.querySelector('#seatEditBtn').click()`);
 await sleep(350);
 check('刷新后未安排面板保留', await cdp.eval(`document.querySelector('.unseated-panel').textContent.includes('测试新生')`));
 
+/* ---- 座位布局调整 ---- */
+await cdp.eval(`window.confirm = () => true`);
+await cdp.eval(`(() => {
+  const r = document.querySelector('#rowDimSel');
+  const c = document.querySelector('#colDimSel');
+  r.value = '5';
+  c.value = '7';
+  document.querySelector('#applyDimsBtn').click();
+})()`);
+await sleep(700);
+check('布局调整为 5×7', await cdp.eval(`document.querySelectorAll('.seat').length === 35`));
+check('超范围学生转未安排', await cdp.eval(`(() => {
+  const expect = D.students().filter(s => !s.row || s.row > 5 || s.col > 7).length;
+  const chips = document.querySelectorAll('.unseated-chip').length;
+  return chips === expect && expect > 0;
+})()`));
+await cdp.send('Page.reload', { ignoreCache: true });
+await sleep(1800);
+check('布局调整持久化', await cdp.eval(`document.querySelectorAll('.seat').length === 35`));
+await cdp.eval(`document.querySelector('#seatEditBtn').click()`);
+await sleep(300);
+await cdp.eval(`window.confirm = () => true`);
+await cdp.eval(`(() => {
+  const r = document.querySelector('#rowDimSel');
+  const c = document.querySelector('#colDimSel');
+  r.value = '6';
+  c.value = '8';
+  document.querySelector('#applyDimsBtn').click();
+})()`);
+await sleep(700);
+check('恢复 6×8', await cdp.eval(`document.querySelectorAll('.seat').length === 48`));
+
 /* ================= 花名册 ================= */
 await cdp.eval(`location.hash = 'roster'`);
 await sleep(900);

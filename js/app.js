@@ -88,6 +88,7 @@ const state = {
 
 const TODAY = ATTENDANCE.date;
 const WEEK_CN = ['日', '一', '二', '三', '四', '五', '六'];
+const CLASSROOM_DEFAULT = { rows: 6, cols: 8 };
 
 /* ---------- 工具函数 ---------- */
 const byId = id => document.getElementById(id);
@@ -199,6 +200,10 @@ async function loadAllData() {
   }
   if (!AppData.settings.backup) {
     AppData.settings.backup = { enabled: true, frequency: 'daily', keep: 5, lastBackup: null };
+    changed = true;
+  }
+  if (!AppData.settings.classroom) {
+    AppData.settings.classroom = Object.assign({}, CLASSROOM_DEFAULT);
     changed = true;
   }
   if (changed) await Store.putRecord('settings', AppData.settings);
@@ -1621,28 +1626,41 @@ function seatCell(rowNo, colNo) {
     </button>`;
 }
 
-function seatRow(rowNo) {
-  const cells = [1, 2, 3, 4, 5, 6, 7, 8].map(c => seatCell(rowNo, c));
+function classroomDims() {
+  const c = (AppData.settings && AppData.settings.classroom) || CLASSROOM_DEFAULT;
+  const rows = Math.min(Math.max(parseInt(c.rows, 10) || 6, 1), 12);
+  const cols = Math.min(Math.max(parseInt(c.cols, 10) || 8, 1), 16);
+  return { rows, cols };
+}
+
+function seatRow(rowNo, cols) {
+  let cellsHtml = '';
+  for (let c = 1; c <= cols; c += 1) {
+    cellsHtml += seatCell(rowNo, c);
+    if (c % 2 === 0 && c !== cols) cellsHtml += '<span class="aisle"></span>';
+  }
   return `
     <div class="seat-row${rowNo === 4 ? ' row-gap' : ''}">
       <span class="row-label">${rowNo}排</span>
-      ${cells[0]}${cells[1]}<span class="aisle"></span>
-      ${cells[2]}${cells[3]}<span class="aisle"></span>
-      ${cells[4]}${cells[5]}<span class="aisle"></span>
-      ${cells[6]}${cells[7]}
+      ${cellsHtml}
     </div>`;
 }
 
 function renderSeating() {
+  const dims = classroomDims();
   const groupChips = [0, 1, 2, 3, 4, 5, 6, 7, 8].map(g => `
     <button class="gchip g${g}" data-group="${g}" type="button">
       ${g ? `<i class="dot"></i>第 ${g} 组` : '全部'}
     </button>`).join('');
   const unseated = D.students().filter(s => !s.row || !s.col);
+  const dimOptions = n => Array.from({ length: n }, (_, i) => i + 1).map(v => `<option value="${v}">${v}</option>`).join('');
   const editBar = state.seatEditMode ? `
     <div class="edit-bar card">
       <span class="edit-status" id="editStatus"></span>
       <div class="edit-actions">
+        <label class="dims-label">排数 <select id="rowDimSel">${dimOptions(12)}</select></label>
+        <label class="dims-label">列数 <select id="colDimSel">${dimOptions(16)}</select></label>
+        <button class="btn" id="applyDimsBtn" type="button">调整布局</button>
         <button class="btn ${state.seatMoveMode ? 'primary' : ''}" id="moveBtn" type="button">移动 / 互换</button>
         <button class="btn primary" id="addStudentBtn" type="button">＋ 新增学生</button>
       </div>
@@ -1655,7 +1673,7 @@ function renderSeating() {
 
   byId('content').innerHTML = `
     <div class="page-head">
-      <div><h2>座次表</h2><p>${classInfo().className} · 6 排 × 8 列 · 共 ${D.students().length} 名学生</p></div>
+      <div><h2>座次表</h2><p>${classInfo().className} · ${dims.rows} 排 × ${dims.cols} 列 · 共 ${D.students().length} 名学生</p></div>
       <div class="page-actions">
         <button class="btn ghost" id="seatReset" type="button">重置筛选</button>
       <button class="btn ${state.seatEditMode ? 'primary' : 'ghost'}" id="seatEditBtn" type="button">
@@ -1680,13 +1698,13 @@ function renderSeating() {
     ${unseatedPanel}
 
     <p class="seat-hint">${state.seatEditMode
-      ? '编辑模式：点击座位修改学生信息，点击空位新增学生；开启「移动 / 互换」后先点一名学生，再点目标座位。'
+      ? '编辑模式：点击座位修改学生信息，点击空位新增学生；开启「移动 / 互换」后先点一名学生，再点目标座位；可在编辑栏随时调整排 / 列。'
       : '点击小组标签可多选高亮；点击任意座位查看学生信息'}</p>
 
     <div class="podium"><span>讲 台</span></div>
     <div class="seat-map-wrap card">
       <div class="seat-map" id="seatMap">
-        ${[1, 2, 3, 4, 5, 6].map(seatRow).join('')}
+        ${Array.from({ length: dims.rows }, (_, i) => seatRow(i + 1, dims.cols)).join('')}
       </div>
     </div>`;
 
@@ -1753,13 +1771,29 @@ function bindSeatEvents() {
     });
   }
 
+  const rowSel = byId('rowDimSel');
+  const colSel = byId('colDimSel');
+  if (rowSel && colSel) {
+    const dims = classroomDims();
+    rowSel.value = String(dims.rows);
+    colSel.value = String(dims.cols);
+    byId('applyDimsBtn').addEventListener('click', () => {
+      const rows = Number(rowSel.value);
+      const cols = Number(colSel.value);
+      const moved = D.students().filter(s => s.row > rows || s.col > cols).length;
+      if (!confirm(`将座位布局调整为 ${rows} 排 × ${cols} 列。\n超出范围的 ${moved} 名学生将转为「未安排」，确定吗？`)) return;
+      applyClassroomDims(rows, cols);
+    });
+  }
+
   const addBtn = byId('addStudentBtn');
   if (addBtn) {
     addBtn.addEventListener('click', () => {
+      const dims = classroomDims();
       const occupied = new Set(D.students().filter(s => s.row > 0).map(s => s.row + '-' + s.col));
       let empty = null;
-      for (let r = 1; r <= 6 && !empty; r += 1) {
-        for (let c = 1; c <= 8; c += 1) {
+      for (let r = 1; r <= dims.rows && !empty; r += 1) {
+        for (let c = 1; c <= dims.cols; c += 1) {
           if (!occupied.has(r + '-' + c)) { empty = [r, c]; break; }
         }
       }
@@ -1824,6 +1858,23 @@ function updateMoveUI() {
   }
 }
 
+async function applyClassroomDims(rows, cols) {
+  const s = AppData.settings;
+  s.classroom = { rows, cols };
+  let moved = 0;
+  AppData.students.forEach(st => {
+    if (st.row > rows || st.col > cols) {
+      st.row = 0;
+      st.col = 0;
+      moved += 1;
+    }
+  });
+  await Store.putRecord('settings', s);
+  if (moved) await Store.putStudents(AppData.students);
+  renderSeating();
+  showToast(`座位布局已调整为 ${rows} 排 × ${cols} 列${moved ? `，${moved} 名学生转为未安排` : ''}`);
+}
+
 function updateSeatFilter(countEl) {
   const q = state.seatQuery.toLowerCase();
   const hasGroup = state.activeGroups.size > 0;
@@ -1872,10 +1923,12 @@ function openStudentForm(sid, defRow, defCol) {
     name: '', gender: '男', group: 1, row: defRow || 0, col: defCol || 0,
     role: '', parent: '', phone: ''
   };
+  const dims = classroomDims();
   const rowOptions = ['<option value="0">未安排</option>']
-    .concat([1, 2, 3, 4, 5, 6].map(r => `<option value="${r}" ${v.row === r ? 'selected' : ''}>第 ${r} 排</option>`)).join('');
+    .concat(Array.from({ length: dims.rows }, (_, i) => i + 1).map(r =>
+      `<option value="${r}" ${v.row === r ? 'selected' : ''}>第 ${r} 排</option>`)).join('');
   const colOptions = ['<option value="0">未安排</option>']
-    .concat([1, 2, 3, 4, 5, 6, 7, 8].map(c =>
+    .concat(Array.from({ length: dims.cols }, (_, i) => i + 1).map(c =>
       `<option value="${c}" ${v.col === c ? 'selected' : ''}>第 ${c} 列</option>`)).join('');
   const extraActions = s ? `
     <div class="student-extra">
@@ -1923,7 +1976,7 @@ function openStudentForm(sid, defRow, defCol) {
     colSel.disabled = rowSel.value === '0';
     if (rowSel.value === '0') colSel.value = '0';
   };
-  if (![1, 2, 3, 4, 5, 6, 7, 8].includes(v.col) || v.row === 0) colSel.value = '0';
+  if (v.row === 0 || !Array.from({ length: dims.cols }, (_, i) => i + 1).includes(v.col)) colSel.value = '0';
   rowSel.addEventListener('change', syncCol);
   syncCol();
 
@@ -3568,6 +3621,7 @@ async function finishInit() {
     className: byId('initClassName').value.trim() || classInfo().className,
     semester: byId('initSemester').value.trim() || classInfo().semester,
     backup: { enabled: true, frequency: 'daily', keep: 5, lastBackup: null },
+    classroom: Object.assign({}, CLASSROOM_DEFAULT),
     initializedAt: new Date().toISOString()
   };
 

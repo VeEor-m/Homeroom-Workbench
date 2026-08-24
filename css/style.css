@@ -1505,6 +1505,27 @@ body.drawer-lock { overflow: hidden; }
 .edit-status { font-size: 12px; color: var(--ink); }
 .edit-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
+.dims-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.dims-label select {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: inherit;
+  outline: none;
+}
+
+.dims-label select:focus { border-color: var(--primary); }
+
 .unseated-panel {
   display: flex;
   align-items: center;
