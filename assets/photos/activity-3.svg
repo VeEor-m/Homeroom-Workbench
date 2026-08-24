@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e6f0f8"/>
+      <stop offset="1" stop-color="#e8f3ed"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="420" fill="url(#bg)"/>
+  <circle cx="560" cy="340" r="140" fill="#ffffff" opacity="0.35"/>
+  <circle cx="90" cy="90" r="100" fill="#ffffff" opacity="0.3"/>
+  <circle cx="150" cy="320" r="34" fill="#cfe0ef" opacity="0.6"/>
+  <g transform="translate(320,170)" fill="none" stroke="#6f9fc0" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="0" cy="-58" r="14" fill="#6f9fc0"/>
+    <path d="M0 -42 L0 4"/>
+    <path d="M0 -12 C -16 -8 -26 4 -28 22 L-16 24 C -14 14 -8 8 0 6"/>
+    <path d="M0 2 C 16 8 26 22 28 42 L16 44 C 14 30 8 16 0 10"/>
+    <path d="M0 4 L-14 26 L-16 58 M0 4 L16 30 L14 58"/>
+  </g>
+  <text x="320" y="322" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="26" fill="#4c7fa3" font-weight="600">秋季运动会</text>
+  <text x="320" y="354" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="14" fill="#7d8d87">活动照片占位图（可替换为实拍照片）</text>
+</svg>

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="中学班主任工作台 - 班级日常管理一体化工具">
+  <title>班主任工作台 · 初三（2）班</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app" id="app">
+
+    <!-- 左侧固定导航栏 -->
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path d="M4 19.5V5.2A2.2 2.2 0 0 1 6.2 3h11.6A2.2 2.2 0 0 1 20 5.2v14.3"/>
+            <path d="M4 19.5A2.2 2.2 0 0 1 6.2 17.3H20"/>
+            <path d="M9 8h6M9 12h4"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <strong>班主任工作台</strong>
+          <span>Homeroom Workbench</span>
+        </div>
+      </div>
+
+      <nav class="nav" id="nav" aria-label="主导航"></nav>
+
+      <div class="sidebar-foot">
+        <button class="collapse-btn" id="collapseBtn" type="button" title="收起 / 展开导航" aria-label="收起导航">
+          <svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg>
+        </button>
+        <span class="collapse-label">收起导航</span>
+      </div>
+    </aside>
+
+    <!-- 右侧主内容区域 -->
+    <div class="main">
+      <header class="topbar">
+        <button class="menu-btn" id="menuBtn" type="button" title="打开导航" aria-label="打开导航">
+          <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+        <h1 class="page-title" id="pageTitle">工作台</h1>
+        <div class="topbar-meta">
+          <span class="chip chip-primary" id="chipClassName">初三（2）班</span>
+          <span class="chip chip-accent" id="chipSemester">2026—2027 学年</span>
+          <span class="topbar-date" id="topDate"></span>
+          <div class="topbar-actions">
+            <button class="btn tiny" id="settingsBtn" type="button" title="班级信息、自动备份等通用设置">设置</button>
+            <button class="btn tiny" id="exportBtn" type="button" title="将全部数据导出为 JSON 备份">导出数据</button>
+            <button class="btn tiny" id="importBtn" type="button" title="导入数据：备份恢复 / 花名册 / 课程表">导入数据</button>
+          </div>
+        </div>
+      </header>
+
+      <main class="content" id="content"></main>
+    </div>
+
+    <!-- 详情面板 -->
+    <div class="drawer-backdrop" id="drawerBackdrop"></div>
+    <aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle"></aside>
+  </div>
+
+  <!-- 初始化 / 班级设置 -->
+  <div class="init-screen" id="initScreen" hidden></div>
+
+  <script src="js/data.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

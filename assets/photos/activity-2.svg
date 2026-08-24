@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f5eedb"/>
+      <stop offset="1" stop-color="#e5f1ef"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="420" fill="url(#bg)"/>
+  <circle cx="80" cy="350" r="130" fill="#ffffff" opacity="0.35"/>
+  <circle cx="580" cy="80" r="110" fill="#ffffff" opacity="0.3"/>
+  <circle cx="120" cy="90" r="38" fill="#d8e8e2" opacity="0.6"/>
+  <g transform="translate(320,170)" fill="none" stroke="#5f9d98" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="0" cy="0" r="46"/>
+    <path d="M0 -20 L0 12"/>
+    <path d="M-18 -8 C -42 -16 -56 -42 -48 -70 C -22 -66 -12 -38 0 -26"/>
+    <path d="M18 -8 C 42 -16 56 -42 48 -70 C 22 -66 12 -38 0 -26"/>
+    <path d="M-24 22 L-24 60 M24 22 L24 60 M-14 42 L14 42"/>
+  </g>
+  <text x="320" y="320" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="26" fill="#4c7fa3" font-weight="600">社区志愿服务</text>
+  <text x="320" y="352" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="14" fill="#7d8d87">活动照片占位图（可替换为实拍照片）</text>
+</svg>
