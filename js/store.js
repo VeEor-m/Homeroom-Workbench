@@ -23,7 +23,8 @@ const SEED_RECORDS = {
   growth: GROWTH,
   activities: ACTIVITIES,
   schedule: SCHEDULE,
-  todos: TODOS
+  todos: TODOS,
+  grades: GRADES
 };
 const RECORD_KEYS = Object.keys(SEED_RECORDS);
 

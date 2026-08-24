@@ -323,3 +323,36 @@ const TODOS = [
   { id: 't2', text: '确认秋季运动会报名与训练安排', due: '2026-08-28', priority: '中', done: false, createdAt: '2026-08-24' },
   { id: 't3', text: '确认本周家访计划（赵一鸣 8/29）', due: '2026-08-28', priority: '中', done: false, createdAt: '2026-08-24' }
 ];
+
+/* 成绩分析：科目与示例考试成绩（确定性生成，便于复现） */
+const GRADE_SUBJECTS = ['语文', '数学', '英语', '物理', '化学', '生物', '道德与法治', '历史', '地理'];
+
+function gradeSeededRandom(seed) {
+  let x = seed >>> 0;
+  return () => {
+    x = (x * 1103515245 + 12345) & 0x7fffffff;
+    return x / 0x7fffffff;
+  };
+}
+
+const GRADES = {
+  exams: [
+    { id: 'e1', name: '第一次月考', date: '2026-09-25' },
+    { id: 'e2', name: '期中考试', date: '2026-11-05' }
+  ].map((meta, ei) => {
+    const scores = {};
+    STUDENTS.forEach((s, i) => {
+      const rnd = gradeSeededRandom(1000 + i * 97 + ei * 31);
+      const ability = 52 + rnd() * 36;
+      const drift = ei === 1 ? (rnd() * 10 - 5) : 0;
+      const row = {};
+      GRADE_SUBJECTS.forEach((subj, j) => {
+        const bias = ((j * 37) % 11) - 5;
+        const v = Math.max(38, Math.min(100, Math.round(ability + bias + drift + (rnd() * 20 - 10))));
+        row[subj] = v;
+      });
+      scores[s.id] = row;
+    });
+    return { id: meta.id, name: meta.name, date: meta.date, scores };
+  })
+};

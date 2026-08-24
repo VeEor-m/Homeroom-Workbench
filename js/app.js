@@ -34,7 +34,7 @@ const PAGES = [
   { key: 'workbench', label: '工作台', icon: 'dashboard', ready: true },
   { key: 'seating', label: '座次表', icon: 'seating', ready: true },
   { key: 'duty', label: '值日表', icon: 'duty', ready: false },
-  { key: 'grades', label: '成绩分析', icon: 'grades', ready: false },
+  { key: 'grades', label: '成绩分析', icon: 'grades', ready: true },
   { key: 'roster', label: '花名册', icon: 'roster', ready: true },
   { key: 'committee', label: '班委名单', icon: 'committee', ready: false },
   { key: 'contacts', label: '家长联系方式', icon: 'contacts', ready: false },
@@ -45,10 +45,6 @@ const PLACEHOLDER_INFO = {
   duty: {
     icon: 'duty', title: '值日表', desc: '值日排班与提醒模块',
     points: ['按周自动轮值排班', '值日生名单与职责查看', '值日完成情况打卡', '调换值日一键通知']
-  },
-  grades: {
-    icon: 'grades', title: '成绩分析', desc: '考试成绩录入与分析模块',
-    points: ['单科 / 总分排名', '进退步对比分析', '学科均衡度雷达图', '成绩单导出']
   },
   committee: {
     icon: 'committee', title: '班委名单', desc: '班委职务与分工模块',
@@ -79,6 +75,10 @@ const state = {
   todayHover: false,
   rosterSearch: '',
   rosterGroup: 0,
+  gradesExamId: null,
+  gradesSubject: '总分',
+  gradesGroup: 0,
+  gradesEdit: false,
   needsInit: false,
   initStep: 1,
   initOption: null,
@@ -156,7 +156,8 @@ const D = {
   growth() { return AppData.records.growth; },
   activities() { return AppData.records.activities; },
   schedule() { return AppData.records.schedule; },
-  todos() { return AppData.records.todos; }
+  todos() { return AppData.records.todos; },
+  grades() { return AppData.records.grades; }
 };
 
 function cloneSeed(key) {
@@ -357,6 +358,7 @@ function render() {
   if (state.page === 'workbench') renderWorkbench();
   else if (state.page === 'seating') renderSeating();
   else if (state.page === 'roster') renderRoster();
+  else if (state.page === 'grades') renderGrades();
   else if (state.page === 'schedule') renderSchedule();
   else renderPlaceholder(page.key);
 }
@@ -805,6 +807,8 @@ function sectionBlock(title, extra, bodyHtml, editorType) {
 
 function drawerFor(key) {
   if (key.startsWith('student:')) return studentDrawer(key.slice(8));
+  if (key.startsWith('grade-edit:')) return gradeEditHtml(key.slice('grade-edit:'.length));
+  if (key.startsWith('grade-detail:')) return gradeDetailHtml(key.slice('grade-detail:'.length));
   switch (key) {
     case 'attendance': return attendanceDrawer();
     case 'discipline': return disciplineDrawer();
@@ -1222,6 +1226,7 @@ function openDrawer(key) {
     });
   }
   if (state.drawerEditing) enableDrawerEdit(key);
+  bindDrawerContent(key);
 }
 
 function closeDrawer() {
@@ -2175,6 +2180,492 @@ function bindRosterEvents() {
 }
 
 /* ============================================================
+ * 成绩分析页面
+ * ============================================================ */
+function currentExam() {
+  const g = D.grades() || { exams: [] };
+  return g.exams.find(e => e.id === state.gradesExamId) || g.exams[0] || null;
+}
+
+function previousExam(exam) {
+  const g = D.grades() || { exams: [] };
+  const idx = g.exams.findIndex(e => e.id === exam.id);
+  return idx > 0 ? g.exams[idx - 1] : null;
+}
+
+function scoreOf(exam, sid, subject) {
+  const row = exam.scores[sid];
+  if (!row || row[subject] == null) return null;
+  return row[subject];
+}
+
+function totalOf(exam, sid) {
+  const row = exam.scores[sid];
+  if (!row) return null;
+  const vals = GRADE_SUBJECTS.map(s => row[s]).filter(v => v != null);
+  return vals.length ? vals.reduce((a, b) => a + b, 0) : null;
+}
+
+function subjectAvgMap(exam) {
+  const map = {};
+  GRADE_SUBJECTS.forEach(subj => {
+    const vals = D.students().map(s => scoreOf(exam, s.id, subj)).filter(v => v != null);
+    map[subj] = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+  });
+  return map;
+}
+
+function gradeStats(exam, subject) {
+  const list = [];
+  D.students().forEach(s => {
+    const v = subject === '总分' ? totalOf(exam, s.id) : scoreOf(exam, s.id, subject);
+    if (v != null) list.push(v);
+  });
+  const n = list.length;
+  const bins = [0, 0, 0, 0, 0];
+  if (!n) return { n, avg: 0, max: 0, min: 0, passRate: 0, excellentRate: 0, bins };
+  const avg = list.reduce((a, b) => a + b, 0) / n;
+  const pass = list.filter(v => v >= 60).length;
+  const excellent = list.filter(v => v >= 85).length;
+  list.forEach(v => {
+    if (v < 60) bins[0] += 1;
+    else if (v < 70) bins[1] += 1;
+    else if (v < 80) bins[2] += 1;
+    else if (v < 90) bins[3] += 1;
+    else bins[4] += 1;
+  });
+  return {
+    n,
+    avg: Math.round(avg * 10) / 10,
+    max: Math.max(...list),
+    min: Math.min(...list),
+    passRate: Math.round(pass / n * 100),
+    excellentRate: Math.round(excellent / n * 100),
+    bins
+  };
+}
+
+function gradeRankList(exam, subject) {
+  const rows = [];
+  D.students().forEach(s => {
+    const v = subject === '总分' ? totalOf(exam, s.id) : scoreOf(exam, s.id, subject);
+    if (v == null) return;
+    rows.push({ sid: s.id, name: s.name, group: s.group, value: v });
+  });
+  rows.sort((a, b) => b.value - a.value || a.name.localeCompare(b.name, 'zh'));
+  const prev = previousExam(exam);
+  const prevRank = {};
+  if (prev) {
+    gradeRankList(prev, subject).forEach((r, idx) => { prevRank[r.sid] = idx + 1; });
+  }
+  return rows.map((r, idx) => ({
+    ...r,
+    rank: idx + 1,
+    diff: prevRank[r.sid] != null ? prevRank[r.sid] - (idx + 1) : null
+  }));
+}
+
+function balanceIndex(exam, sid) {
+  const row = exam.scores[sid] || {};
+  const avgs = subjectAvgMap(exam);
+  let sum = 0;
+  let n = 0;
+  GRADE_SUBJECTS.forEach(subj => {
+    const v = row[subj];
+    const a = avgs[subj];
+    if (v != null && a) {
+      sum += Math.abs(v - a) / a;
+      n += 1;
+    }
+  });
+  if (!n) return null;
+  return Math.max(0, Math.min(100, Math.round(100 - (sum / n) * 100)));
+}
+
+function renderGrades() {
+  const g = D.grades() || { exams: [] };
+  if (!g.exams.length) {
+    byId('content').innerHTML = `
+      <div class="page-head">
+        <div><h2>成绩分析</h2><p>${classInfo().className} · 暂无考试成绩</p></div>
+      </div>
+      <div class="placeholder card">
+        <div class="placeholder-icon">${ICONS.grades}</div>
+        <h3>还没有考试成绩</h3>
+        <p>创建第一场考试后即可录入 / 导入成绩，并自动生成统计与排名。</p>
+        <div class="placeholder-points">
+          <button class="btn primary" id="emptyAddExam" type="button">＋ 新建考试</button>
+          <button class="btn ghost" id="emptyImportGrades" type="button">导入成绩</button>
+        </div>
+      </div>`;
+    byId('emptyAddExam').addEventListener('click', openGradeForm);
+    byId('emptyImportGrades').addEventListener('click', () => openImportDialog('grades'));
+    return;
+  }
+
+  const exam = currentExam();
+  state.gradesExamId = exam.id;
+  const subject = GRADE_SUBJECTS.includes(state.gradesSubject) ? state.gradesSubject : '总分';
+  state.gradesSubject = subject;
+  const stats = gradeStats(exam, subject);
+  const groupOk = r => {
+    const s = D.studentById()[r.sid];
+    if (state.gradesGroup === 0) return true;
+    if (state.gradesGroup === 99) return !s.row;
+    return s.group === state.gradesGroup;
+  };
+  const base = gradeRankList(exam, subject).filter(groupOk);
+  const scoredIds = new Set(base.map(r => r.sid));
+  let list = base;
+  if (state.gradesEdit) {
+    list = base.concat(
+      D.students()
+        .filter(s => !scoredIds.has(s.id))
+        .filter(groupOk)
+        .map(s => ({ sid: s.id, name: s.name, group: s.group, value: null, rank: null, diff: null }))
+    );
+  }
+
+  const binMeta = [
+    { label: '不及格', count: stats.bins[0] },
+    { label: '60-69', count: stats.bins[1] },
+    { label: '70-79', count: stats.bins[2] },
+    { label: '80-89', count: stats.bins[3] },
+    { label: '90-100', count: stats.bins[4] }
+  ];
+  const maxBin = Math.max(...binMeta.map(b => b.count), 1);
+  const distHtml = binMeta.map(b => `
+    <div class="dist-row">
+      <span class="dist-label">${b.label}</span>
+      <div class="dist-track"><div class="dist-fill" style="width:${Math.round(b.count / maxBin * 100)}%"></div></div>
+      <span class="dist-count">${b.count} 人</span>
+    </div>`).join('');
+
+  const examOptions = g.exams.map(e => `<option value="${e.id}" ${e.id === exam.id ? 'selected' : ''}>${esc(e.name)}</option>`).join('');
+  const subjectOptions = ['<option value="总分">总分</option>']
+    .concat(GRADE_SUBJECTS.map(s => `<option value="${s}" ${s === subject ? 'selected' : ''}>${s}</option>`)).join('');
+  const groupChips = [0, 1, 2, 3, 4, 5, 6, 7, 8, 99].map(g => `
+    <button class="gchip${g > 0 && g < 99 ? ` g${g}` : ''}${state.gradesGroup === g ? ' on' : ''}" data-group="${g}" type="button">
+      ${g === 0 ? '全部' : g === 99 ? '<i class="dot dot-muted"></i>未安排' : `<i class="dot"></i>第 ${g} 组`}
+    </button>`).join('');
+
+  const rows = list.map(r => {
+    const s = D.studentById()[r.sid];
+    const diffHtml = r.diff == null
+      ? '<span class="rank-diff rank-eq">—</span>'
+      : r.diff > 0 ? `<span class="rank-diff rank-up">▲ ${r.diff}</span>`
+      : r.diff < 0 ? `<span class="rank-diff rank-down">▼ ${Math.abs(r.diff)}</span>`
+      : '<span class="rank-diff rank-eq">—</span>';
+    return `
+      <tr data-sid="${r.sid}">
+        <td class="td-center"><strong>${r.rank == null ? '—' : r.rank}</strong></td>
+        <td><span class="avatar small">${avatar(s.name)}</span> ${esc(s.name)}</td>
+        <td class="td-center">${s.group}</td>
+        <td class="td-center"><strong>${r.value == null ? '—' : r.value}</strong></td>
+        <td class="td-center">${diffHtml}</td>
+      </tr>`;
+  }).join('');
+
+  byId('content').innerHTML = `
+    <div class="page-head">
+      <div><h2>成绩分析</h2><p>${exam.name} · ${esc(exam.date || '')} · ${classInfo().className}</p></div>
+      <div class="page-actions">
+        <button class="btn ghost" id="gradeCsvBtn" type="button">导出 CSV</button>
+        <button class="btn ghost" id="gradeXlsxBtn" type="button">导出 Excel</button>
+        <button class="btn ghost" id="gradeImportBtn" type="button">导入成绩</button>
+        <button class="btn" id="gradeAddExamBtn" type="button">＋ 新建考试</button>
+        <button class="btn danger-ghost" id="gradeDelExamBtn" type="button">删除考试</button>
+        <button class="btn ${state.gradesEdit ? 'primary' : 'ghost'}" id="gradeEditBtn" type="button">${state.gradesEdit ? '完成编辑' : '编辑成绩'}</button>
+      </div>
+    </div>
+
+    <div class="grade-toolbar card">
+      <label class="dims-label">考试 <select id="gradeExamSel">${examOptions}</select></label>
+      <label class="dims-label">科目 <select id="gradeSubjectSel">${subjectOptions}</select></label>
+      ${state.gradesEdit ? '<span class="grade-edit-hint">编辑模式：点击学生行录入 / 修改该生各科成绩</span>' : '<span class="grade-edit-hint">点击学生行查看个人成绩档案</span>'}
+    </div>
+
+    ${statGrid([
+      { v: stats.avg, l: '平均分', cls: 'ok', sub: `${subject}${subject === '总分' ? '（9 科）' : ''}` },
+      { v: stats.max, l: '最高分', cls: 'good' },
+      { v: stats.min, l: '最低分', cls: 'warn' },
+      { v: stats.passRate + '%', l: '及格率' },
+      { v: stats.excellentRate + '%', l: '优秀率', sub: '≥85 分' },
+      { v: stats.n, l: '参考人数' }
+    ])}
+
+    <div class="grade-cols">
+      <div class="card grade-dist">
+        <div class="d-section-head"><h3>分数分布</h3><span class="head-count">${subject}</span></div>
+        <div class="dist-list">${distHtml}</div>
+      </div>
+
+      <div class="card grade-rank">
+        <div class="d-section-head">
+          <h3>排名表 · ${subject}</h3>
+          <div class="group-chips" id="gradeGroupChips">${groupChips}</div>
+        </div>
+        <div class="table-wrap">
+          <table class="mini-table roster-table">
+            <thead><tr><th class="td-center">名次</th><th>姓名</th><th class="td-center">小组</th><th class="td-center">${subject === '总分' ? '总分' : '分数'}</th><th class="td-center">进退步</th></tr></thead>
+            <tbody>${rows || '<tr><td colspan="5"><p class="empty">没有匹配的成绩记录</p></td></tr>'}</tbody>
+          </table>
+        </div>
+      </div>
+    </div>`;
+
+  bindGradesEvents();
+}
+
+function bindGradesEvents() {
+  byId('gradeExamSel').addEventListener('change', e => {
+    state.gradesExamId = e.target.value;
+    renderGrades();
+  });
+  byId('gradeSubjectSel').addEventListener('change', e => {
+    state.gradesSubject = e.target.value;
+    renderGrades();
+  });
+  byId('gradeCsvBtn').addEventListener('click', () => exportGradesCSV(currentExam()));
+  byId('gradeXlsxBtn').addEventListener('click', () => exportGradesXlsx(currentExam()));
+  byId('gradeImportBtn').addEventListener('click', () => openImportDialog('grades'));
+  byId('gradeAddExamBtn').addEventListener('click', openGradeForm);
+  byId('gradeDelExamBtn').addEventListener('click', deleteCurrentExam);
+  byId('gradeEditBtn').addEventListener('click', () => {
+    state.gradesEdit = !state.gradesEdit;
+    renderGrades();
+  });
+  qsa('#gradeGroupChips .gchip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      state.gradesGroup = Number(chip.dataset.group);
+      renderGrades();
+    });
+  });
+  qsa('.grade-rank tbody tr').forEach(tr => {
+    tr.addEventListener('click', () => {
+      if (state.gradesEdit) openGradeEditDrawer(tr.dataset.sid);
+      else openGradeDetailDrawer(tr.dataset.sid);
+    });
+  });
+}
+
+function nextExamId(g) {
+  let n = 1;
+  while (g.exams.some(e => e.id === 'e' + n)) n += 1;
+  return 'e' + n;
+}
+
+function openGradeForm() {
+  openFormModal({
+    title: '新建考试',
+    fields: [
+      { k: 'name', label: '考试名称', placeholder: '如 第二次月考' },
+      { k: 'date', label: '考试日期', required: false, placeholder: '如 2026-12-20' }
+    ]
+  }, {}, async out => {
+    const g = D.grades();
+    const id = nextExamId(g);
+    g.exams.push({ id, name: out.name, date: out.date || TODAY, scores: {} });
+    await saveRecord('grades', g);
+    state.gradesExamId = id;
+    renderGrades();
+    showToast(`已创建考试「${out.name}」，可编辑模式录入或导入成绩`);
+  });
+}
+
+async function deleteCurrentExam() {
+  const exam = currentExam();
+  if (!exam) return;
+  if (!confirm(`确定删除考试「${exam.name}」及其全部成绩吗？此操作不可恢复。`)) return;
+  const g = D.grades();
+  g.exams = g.exams.filter(e => e.id !== exam.id);
+  state.gradesExamId = g.exams.length ? g.exams[0].id : null;
+  await saveRecord('grades', g);
+  renderGrades();
+  showToast('考试已删除');
+}
+
+function gradeDetailHtml(sid) {
+  const exam = currentExam();
+  const s = D.studentById()[sid];
+  const row = exam.scores[sid] || {};
+  const avgs = subjectAvgMap(exam);
+  const total = totalOf(exam, sid);
+  const rank = gradeRankList(exam, '总分').find(r => r.sid === sid);
+  const prev = previousExam(exam);
+  const prevTotal = prev ? totalOf(prev, sid) : null;
+  const balance = balanceIndex(exam, sid);
+
+  const subjectRows = GRADE_SUBJECTS.map(subj => {
+    const v = row[subj];
+    if (v == null) return `
+      <tr><td>${subj}</td><td class="td-center">—</td><td class="td-center">${Math.round(avgs[subj] * 10) / 10}</td><td class="td-center">—</td></tr>`;
+    const diff = v - avgs[subj];
+    const diffHtml = Math.abs(diff) < 0.5
+      ? '<span class="rank-eq">持平</span>'
+      : diff > 0 ? `<span class="rank-up">+${Math.round(diff * 10) / 10}</span>` : `<span class="rank-down">${Math.round(diff * 10) / 10}</span>`;
+    return `
+      <tr>
+        <td>${subj}</td>
+        <td class="td-center"><strong>${v}</strong></td>
+        <td class="td-center">${Math.round(avgs[subj] * 10) / 10}</td>
+        <td class="td-center">${diffHtml}</td>
+      </tr>`;
+  }).join('');
+
+  const diffRankHtml = rank && rank.diff != null
+    ? rank.diff > 0 ? `<span class="rank-up">▲ ${rank.diff}</span>` : rank.diff < 0 ? `<span class="rank-down">▼ ${Math.abs(rank.diff)}</span>` : '<span class="rank-eq">—</span>'
+    : '<span class="rank-eq">—</span>';
+
+  return drawerShell('grades', `${s.name} · 成绩档案`, exam.name, `
+    <div class="student-hero">
+      <span class="student-avatar">${avatar(s.name)}</span>
+      <div>
+        <h3>${s.name} · ${esc(s.stuNo || '')}</h3>
+        <div class="student-chips">
+          <span class="tag tag-blue">第 ${s.group} 组</span>
+          ${total != null ? `<span class="tag tag-green">总分 ${total}</span>` : ''}
+          ${rank ? `<span class="tag tag-cream">班内第 ${rank.rank} 名</span>` : ''}
+        </div>
+      </div>
+    </div>
+    <div class="d-section">
+      <div class="d-section-head"><h3>各科成绩与班均对比</h3></div>
+      <div class="table-wrap">
+        <table class="mini-table">
+          <thead><tr><th>科目</th><th class="td-center">得分</th><th class="td-center">班均</th><th class="td-center">对比</th></tr></thead>
+          <tbody>${subjectRows}</tbody>
+        </table>
+      </div>
+    </div>
+    <div class="d-section">
+      ${statGrid([
+        { v: total != null ? total : '—', l: '总分' },
+        { v: rank ? rank.rank : '—', l: '班内名次' },
+        { v: balance != null ? balance : '—', l: '均衡指数', sub: '越高越均衡' },
+        { v: prevTotal != null ? prevTotal : '—', l: '上次总分', sub: prev ? prev.name : '' }
+      ])}
+      <div class="grade-diff-line">
+        <span>排名变化（较 ${prev ? prev.name : '上次考试'}）</span>
+        ${diffRankHtml}
+      </div>
+    </div>
+    <p class="d-footnote">均衡指数按各科得分与班级均分的平均偏离度计算；进退步为班内名次变化。</p>
+  `, null);
+}
+
+function gradeEditHtml(sid) {
+  const exam = currentExam();
+  const s = D.studentById()[sid];
+  const row = exam.scores[sid] || {};
+  const fields = GRADE_SUBJECTS.map(subj => `
+    <label class="fm-field"><span>${subj}</span><input data-subj="${subj}" type="number" min="0" max="100" value="${row[subj] != null ? row[subj] : ''}"></label>`).join('');
+  return drawerShell('grades', `录入成绩 · ${s.name}`, exam.name, `
+    <div class="grade-edit-grid">${fields}</div>
+    <div class="form-actions"><button class="btn primary" id="gradeSaveBtn" type="button">保存成绩</button></div>
+    <p class="d-footnote">留空表示该科未考试或缺考；保存后统计与排名自动更新。</p>
+  `, null);
+}
+
+function openGradeDetailDrawer(sid) {
+  openDrawer('grade-detail:' + sid);
+}
+
+function openGradeEditDrawer(sid) {
+  openDrawer('grade-edit:' + sid);
+}
+
+function bindDrawerContent(key) {
+  if (!key.startsWith('grade-edit:')) return;
+  const sid = key.slice('grade-edit:'.length);
+  const btn = byId('gradeSaveBtn');
+  if (!btn) return;
+  btn.addEventListener('click', async () => {
+    const g = D.grades();
+    const exam = g.exams.find(e => e.id === state.gradesExamId) || g.exams[0];
+    if (!exam) return;
+    const row = {};
+    let any = false;
+    qsa('[data-subj]').forEach(inp => {
+      const v = inp.value.trim();
+      if (v === '') return;
+      row[inp.dataset.subj] = Math.max(0, Math.min(100, Number(v)));
+      any = true;
+    });
+    if (!any) { showToast('请至少填写一科成绩', 'warn'); return; }
+    exam.scores[sid] = row;
+    await saveRecord('grades', g);
+    closeDrawer();
+    renderGrades();
+    showToast('成绩已保存');
+  });
+}
+
+function exportGradesCSV(exam) {
+  if (!exam) return;
+  const list = gradeRankList(exam, '总分');
+  const header = ['名次', '姓名', '小组'].concat(GRADE_SUBJECTS, ['总分']);
+  const rows = list.map((r, i) => {
+    const row = exam.scores[r.sid] || {};
+    return [i + 1, r.name, D.studentById()[r.sid].group, ...GRADE_SUBJECTS.map(s => row[s] != null ? row[s] : ''), r.value];
+  });
+  const csv = '\ufeff' + [header.join(',')].concat(rows.map(r => r.join(','))).join('\n');
+  downloadText(csv, `成绩-${exam.name}-${classInfo().className}.csv`, 'text/csv;charset=utf-8');
+  showToast(`成绩已导出为 CSV（${exam.name}）`);
+}
+
+function exportGradesXlsx(exam) {
+  if (!exam) return;
+  const list = gradeRankList(exam, '总分');
+  const header = ['名次', '姓名', '小组'].concat(GRADE_SUBJECTS, ['总分']);
+  const rows = list.map((r, i) => {
+    const row = exam.scores[r.sid] || {};
+    return [i + 1, r.name, D.studentById()[r.sid].group, ...GRADE_SUBJECTS.map(s => row[s] != null ? row[s] : ''), r.value];
+  });
+  buildXlsxBlob(exam.name, header, rows, [8, 12, 8].concat(GRADE_SUBJECTS.map(() => 9), [10]))
+    .then(blob => {
+      downloadBlob(blob, `成绩-${exam.name}-${classInfo().className}.xlsx`);
+      showToast(`成绩已导出为 Excel（${exam.name}）`);
+    })
+    .catch(e => showToast('Excel 导出失败：' + e.message, 'warn'));
+}
+
+function downloadGradesTemplate() {
+  const head = '姓名,' + GRADE_SUBJECTS.join(',');
+  const example = ['示例学生', ...GRADE_SUBJECTS.map(() => '85')].join(',');
+  downloadText('\ufeff' + head + '\n' + example + '\n', '成绩导入模板.csv', 'text/csv;charset=utf-8');
+}
+
+function parseGradesGrid(grid) {
+  const rows = grid.map(r => (r || []).map(c => String(c == null ? '' : c).trim())).filter(r => r.some(Boolean));
+  if (!rows.length) throw new Error('文件内容为空');
+  const head = rows[0];
+  const isStuNo = (head[0] || '').includes('学籍号');
+  const subjects = head.slice(1).filter(s => GRADE_SUBJECTS.includes(s));
+  if (!subjects.length) throw new Error('未识别到科目列（语文 / 数学 / 英语…）');
+  const scores = {};
+  let count = 0;
+  rows.slice(1).forEach(r => {
+    const key = (r[0] || '').trim();
+    if (!key) return;
+    const s = isStuNo ? D.students().find(x => x.stuNo === key) : D.studentByName()[key];
+    if (!s) return;
+    const row = {};
+    subjects.forEach((subj, i) => {
+      const raw = r[i + 1];
+      const v = Number(raw);
+      if (raw !== '' && !isNaN(v)) row[subj] = Math.max(0, Math.min(100, v));
+    });
+    if (Object.keys(row).length) {
+      scores[s.id] = row;
+      count += 1;
+    }
+  });
+  if (!count) throw new Error('未匹配到任何学生成绩（请检查姓名 / 学籍号）');
+  return { scores, subjects, count };
+}
+
+/* ============================================================
  * 课程表页面
  * ============================================================ */
 const SUBJECTS = ['语文', '数学', '英语', '物理', '化学', '生物', '道德与法治', '历史', '地理', '体育', '音乐', '美术', '信息技术', '劳动', '班会', '自习'];
@@ -2689,9 +3180,9 @@ async function buildXlsxBlob(sheetName, header, dataRows, widths) {
   return new Blob([zip], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 }
 
-function openImportDialog() {
+function openImportDialog(initialTab) {
   closeFormModal();
-  state.importTab = 'backup';
+  state.importTab = initialTab || 'backup';
   state.importData = null;
   const root = document.createElement('div');
   root.className = 'form-modal';
@@ -2704,6 +3195,7 @@ function openImportDialog() {
           <button class="import-tab active" data-tab="backup" type="button">备份恢复</button>
           <button class="import-tab" data-tab="roster" type="button">花名册</button>
           <button class="import-tab" data-tab="schedule" type="button">课程表</button>
+          <button class="import-tab" data-tab="grades" type="button">成绩</button>
         </div>
 
         <div class="import-pane active" data-pane="backup">
@@ -2747,6 +3239,20 @@ function openImportDialog() {
           </div>
         </div>
 
+        <div class="import-pane" data-pane="grades">
+          <p class="import-hint">从 <b>CSV / Excel</b> 导入成绩：首列为「姓名」（或学籍号），其余列为科目，将新建一场考试。</p>
+          <div class="init-import-area">
+            <div class="import-tpl-row">
+              <button class="btn ghost" data-tpl="grades-csv" type="button">下载成绩模板</button>
+            </div>
+            <label class="file-pick">
+              <input type="file" id="impGradeFile" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+              <span class="btn primary">选择文件</span>
+            </label>
+            <p id="impGradeStatus" class="init-import-status"></p>
+          </div>
+        </div>
+
         <p class="form-error" id="impError" hidden></p>
       </div>
       <div class="form-actions">
@@ -2772,7 +3278,8 @@ function openImportDialog() {
     'roster-csv': downloadRosterTemplate,
     'roster-xlsx': () => downloadAsset('花名册模板.xlsx'),
     'schedule-csv': downloadScheduleTemplate,
-    'schedule-xlsx': () => downloadAsset('课程表模板.xlsx')
+    'schedule-xlsx': () => downloadAsset('课程表模板.xlsx'),
+    'grades-csv': downloadGradesTemplate
   };
   qsa('[data-tpl]', root).forEach(btn => {
     btn.addEventListener('click', () => tplMap[btn.dataset.tpl]());
@@ -2791,12 +3298,20 @@ function openImportDialog() {
         : parseRosterCSV(await file.text());
       state.importData = { type: 'roster', students };
       statusEl.textContent = `已解析花名册：${students.length} 名学生`;
-    } else {
+    } else if (state.importTab === 'schedule') {
       const parsed = lower.endsWith('.xlsx')
         ? scheduleFromGrid(await parseXlsxGrid(await file.arrayBuffer()))
         : parseScheduleCSV(await file.text());
       state.importData = { type: 'schedule', parsed };
       statusEl.textContent = `已解析课程表：${parsed.days.length} 天 × ${parsed.periods.length} 个时段`;
+    } else {
+      const grid = lower.endsWith('.xlsx')
+        ? await parseXlsxGrid(await file.arrayBuffer())
+        : (await file.text()).split(/\r?\n/).map(l => l.split(/[,\t，]/));
+      const parsed = parseGradesGrid(grid);
+      const examName = file.name.replace(/\.(csv|xlsx)$/i, '') || '导入成绩';
+      state.importData = { type: 'grades', parsed, name: examName };
+      statusEl.textContent = `已解析 ${parsed.count} 名学生 × ${parsed.subjects.length} 科，将新建考试「${examName}」`;
     }
     statusEl.classList.add('ok');
   };
@@ -2819,6 +3334,14 @@ function openImportDialog() {
   bindFile('impBackupFile', 'impBackupStatus');
   bindFile('impRosterFile', 'impRosterStatus');
   bindFile('impSchedFile', 'impSchedStatus');
+  bindFile('impGradeFile', 'impGradeStatus');
+
+  const applyTab = tab => {
+    state.importTab = tab;
+    qsa('.import-tab', root).forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    qsa('.import-pane', root).forEach(p => p.classList.toggle('active', p.dataset.pane === tab));
+  };
+  applyTab(state.importTab);
 
   root.querySelector('#impConfirm').addEventListener('click', async () => {
     const err = root.querySelector('#impError');
@@ -2844,12 +3367,21 @@ function openImportDialog() {
         closeFormModal();
         render();
         showToast(`花名册导入成功（${state.importData.students.length} 人）`);
-      } else {
+      } else if (state.importData.type === 'schedule') {
         const next = mergeScheduleImport(state.importData.parsed);
         await saveRecord('schedule', next);
         closeFormModal();
         render();
         showToast(`课程表导入成功（${next.days.length} 天 × ${next.periods.length} 个时段）`);
+      } else {
+        const g = D.grades();
+        const id = nextExamId(g);
+        g.exams.push({ id, name: state.importData.name, date: TODAY, scores: state.importData.parsed.scores });
+        await saveRecord('grades', g);
+        state.gradesExamId = id;
+        closeFormModal();
+        render();
+        showToast(`已导入考试「${state.importData.name}」（${state.importData.parsed.count} 人 × ${state.importData.parsed.subjects.length} 科）`);
       }
     } catch (e) {
       err.textContent = '导入失败：' + e.message;
@@ -3610,7 +4142,8 @@ async function putBlankRecords() {
       teachers: {},
       adjustments: []
     },
-    todos: []
+    todos: [],
+    grades: { exams: [] }
   };
   for (const k of Object.keys(blank)) await Store.putRecord(k, blank[k]);
 }

@@ -551,6 +551,42 @@ await cdp.send('Page.reload', { ignoreCache: true });
 await sleep(1800);
 check('导入结果持久化', await cdp.eval(`document.querySelector('.sc-cell[data-key="周一-第1节"] .sc-subject').textContent === '数学'`));
 
+/* ================= 成绩分析 ================= */
+await cdp.eval(`location.hash = 'grades'`);
+await sleep(900);
+check('成绩分析页面', await cdp.eval(`document.querySelector('.page-title').textContent === '成绩分析'`));
+check('统计卡片 6 个', await cdp.eval(`document.querySelectorAll('.stat').length === 6`));
+check('排名表 48 行', await cdp.eval(`document.querySelectorAll('.grade-rank tbody tr').length === 48`));
+check('分数分布 5 段', await cdp.eval(`document.querySelectorAll('.dist-row').length === 5`));
+check('平均分显示正常', await cdp.eval(`(() => { const v = Number(document.querySelector('.stat.ok strong').textContent); return v > 0 && v < 1000; })()`));
+await cdp.shot('11-grades');
+await cdp.eval(`(() => { const s = document.querySelector('#gradeSubjectSel'); s.value = '语文'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+await sleep(400);
+check('切换科目后排名更新', await cdp.eval(`document.querySelector('.grade-rank .d-section-head h3').textContent.includes('语文') && document.querySelectorAll('.grade-rank tbody tr').length === 48`));
+await cdp.eval(`document.querySelector('#gradeAddExamBtn').click()`);
+await sleep(300);
+await cdp.eval(`(() => { const m = document.querySelector('.form-modal'); m.querySelector('[data-k="name"]').value = '测试考试'; m.querySelector('[data-save]').click(); })()`);
+await sleep(500);
+check('新建考试成功', await cdp.eval(`document.querySelector('#gradeExamSel').textContent.includes('测试考试')`));
+await cdp.eval(`document.querySelector('#gradeEditBtn').click()`);
+await sleep(300);
+await cdp.eval(`document.querySelector('.grade-rank tbody tr[data-sid="s02"]').click()`);
+await sleep(400);
+check('录入抽屉打开', await cdp.eval(`document.querySelector('#drawer').textContent.includes('录入成绩')`));
+await cdp.eval(`(() => { const i = document.querySelector('[data-subj="语文"]'); i.value = '100'; document.querySelector('#gradeSaveBtn').click(); })()`);
+await sleep(600);
+check('成绩已保存', await cdp.eval(`D.grades().exams.find(e => e.name === '测试考试').scores.s02.语文 === 100`));
+await cdp.send('Page.reload', { ignoreCache: true });
+await sleep(1800);
+await cdp.eval(`location.hash = 'grades'`);
+await sleep(800);
+await cdp.eval(`(() => { const s = document.querySelector('#gradeExamSel'); s.value = [...s.options].find(o => o.textContent === '测试考试').value; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+await sleep(400);
+check('成绩录入持久化', await cdp.eval(`D.grades().exams.find(e => e.name === '测试考试').scores.s02.语文 === 100`));
+await cdp.eval(`window.confirm = () => true; document.querySelector('#gradeDelExamBtn').click()`);
+await sleep(500);
+check('删除考试成功', await cdp.eval(`!document.querySelector('#gradeExamSel').textContent.includes('测试考试')`));
+
 /* ================= 导入中心（Excel 模板 / 花名册导入） ================= */
 const rosterXlsxPath = 'C:/Users/Administrator/Documents/Codex/2026-08-24/build-x20/outputs/teacher-workbench/assets/templates/花名册模板.xlsx';
 const schedXlsxPath = 'C:/Users/Administrator/Documents/Codex/2026-08-24/build-x20/outputs/teacher-workbench/assets/templates/课程表模板.xlsx';
@@ -590,6 +626,22 @@ await sleep(1000);
 check('课程表 Excel 解析状态', await cdp.eval(`document.querySelector('#impSchedStatus').textContent.includes('已解析课程表')`));
 await cdp.eval(`document.querySelector('.form-modal [data-close]').click()`);
 await sleep(300);
+
+/* 成绩导入（CSV → 新建考试） */
+const gradeCsvPath = 'C:/Users/Administrator/Documents/Codex/2026-08-24/build-x20/outputs/teacher-workbench/dev/grade-import-test.csv';
+fs.writeFileSync(gradeCsvPath, '姓名,语文,数学\n张小明,98,76\n');
+await cdp.eval(`document.querySelector('#importBtn').click()`);
+await sleep(400);
+await cdp.eval(`document.querySelector('.import-tab[data-tab="grades"]').click()`);
+await sleep(250);
+const gradeDoc = await cdp.send('DOM.getDocument');
+const gradeNode = await cdp.send('DOM.querySelector', { nodeId: gradeDoc.root.nodeId, selector: '#impGradeFile' });
+await cdp.send('DOM.setFileInputFiles', { nodeId: gradeNode.nodeId, files: [gradeCsvPath] });
+await sleep(1000);
+check('成绩导入解析', await cdp.eval(`document.querySelector('#impGradeStatus').textContent.includes('已解析 1 名学生')`));
+await cdp.eval(`document.querySelector('#impConfirm').click()`);
+await sleep(700);
+check('成绩导入创建考试', await cdp.eval(`D.grades().exams.some(e => e.name === 'grade-import-test' && Object.values(e.scores)[0].语文 === 98)`));
 
 /* ================= 导出中心（CSV / Excel） ================= */
 const exportRound = await cdp.eval(`buildXlsxBlob('测试', ['姓名','小组'], [['张三', 1]], [10, 8]).then(async b => {
