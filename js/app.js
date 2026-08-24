@@ -2644,12 +2644,16 @@ function parseGradesGrid(grid) {
   const subjects = head.slice(1).filter(s => GRADE_SUBJECTS.includes(s));
   if (!subjects.length) throw new Error('未识别到科目列（语文 / 数学 / 英语…）');
   const scores = {};
+  const unmatched = [];
   let count = 0;
   rows.slice(1).forEach(r => {
     const key = (r[0] || '').trim();
     if (!key) return;
     const s = isStuNo ? D.students().find(x => x.stuNo === key) : D.studentByName()[key];
-    if (!s) return;
+    if (!s) {
+      unmatched.push(key);
+      return;
+    }
     const row = {};
     subjects.forEach((subj, i) => {
       const raw = r[i + 1];
@@ -2661,8 +2665,15 @@ function parseGradesGrid(grid) {
       count += 1;
     }
   });
-  if (!count) throw new Error('未匹配到任何学生成绩（请检查姓名 / 学籍号）');
-  return { scores, subjects, count };
+  if (!count) {
+    const sample = unmatched.slice(0, 5).map(k => `「${k}」`).join('、');
+    throw new Error(
+      `未匹配到任何学生成绩：文件里的${isStuNo ? '学籍号' : '姓名'}与当前花名册不一致` +
+      (sample ? `，例如 ${sample}` : '') +
+      `。请核对名单${isStuNo ? '' : '，或把首列改成「学籍号」'}后再导入。`
+    );
+  }
+  return { scores, subjects, count, unmatched };
 }
 
 /* ============================================================
@@ -3311,7 +3322,10 @@ function openImportDialog(initialTab) {
       const parsed = parseGradesGrid(grid);
       const examName = file.name.replace(/\.(csv|xlsx)$/i, '') || '导入成绩';
       state.importData = { type: 'grades', parsed, name: examName };
-      statusEl.textContent = `已解析 ${parsed.count} 名学生 × ${parsed.subjects.length} 科，将新建考试「${examName}」`;
+      const un = parsed.unmatched || [];
+      statusEl.textContent = `已匹配 ${parsed.count} 名学生 × ${parsed.subjects.length} 科` +
+        (un.length ? `；未匹配 ${un.length} 人（${un.slice(0, 3).join('、')}…）` : '') +
+        `，将新建考试「${examName}」`;
     }
     statusEl.classList.add('ok');
   };

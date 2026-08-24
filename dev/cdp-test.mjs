@@ -638,10 +638,12 @@ const gradeDoc = await cdp.send('DOM.getDocument');
 const gradeNode = await cdp.send('DOM.querySelector', { nodeId: gradeDoc.root.nodeId, selector: '#impGradeFile' });
 await cdp.send('DOM.setFileInputFiles', { nodeId: gradeNode.nodeId, files: [gradeCsvPath] });
 await sleep(1000);
-check('成绩导入解析', await cdp.eval(`document.querySelector('#impGradeStatus').textContent.includes('已解析 1 名学生')`));
+check('成绩导入解析', await cdp.eval(`document.querySelector('#impGradeStatus').textContent.includes('已匹配 1 名学生')`));
 await cdp.eval(`document.querySelector('#impConfirm').click()`);
 await sleep(700);
 check('成绩导入创建考试', await cdp.eval(`D.grades().exams.some(e => e.name === 'grade-import-test' && Object.values(e.scores)[0].语文 === 98)`));
+const mismatchMsg = await cdp.eval(`(() => { try { parseGradesGrid([['姓名','语文'],['不存在的人','80']]); return 'NO ERROR'; } catch (e) { return e.message; } })()`);
+check('未匹配提示明确', mismatchMsg.includes('未匹配到任何学生成绩') && mismatchMsg.includes('不存在的人'));
 
 /* ================= 导出中心（CSV / Excel） ================= */
 const exportRound = await cdp.eval(`buildXlsxBlob('测试', ['姓名','小组'], [['张三', 1]], [10, 8]).then(async b => {
