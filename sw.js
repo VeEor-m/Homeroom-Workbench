@@ -2,7 +2,7 @@
 
 /* 班主任工作台 · Service Worker（离线缓存）
  * 策略：优先网络（保证更新即时生效），失败回退缓存；首次访问后断网也能打开。 */
-const CACHE_NAME = 'homeroom-workbench-v1';
+const CACHE_NAME = 'homeroom-workbench-v1.0.0';
 const PRECACHE = [
   './index.html',
   './css/style.css',

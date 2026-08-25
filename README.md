@@ -42,6 +42,8 @@ python -m http.server 8080
 index.html             页面骨架
 manifest.webmanifest   PWA 清单
 sw.js                  Service Worker（离线缓存）
+CHANGELOG.md           更新日志（版本历史）
+RELEASE.md             发版流程（版本号同步 / 打 tag / 打包发布）
 css/style.css          全部样式（含响应式）
 js/data.js             班级与学生模拟数据（首次播种用）
 js/store.js            IndexedDB 持久化层（学生 + 工作记录 + 备份导入导出）

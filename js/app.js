@@ -79,6 +79,7 @@ const state = {
 const TODAY = ATTENDANCE.date;
 const WEEK_CN = ['日', '一', '二', '三', '四', '五', '六'];
 const CLASSROOM_DEFAULT = { rows: 6, cols: 8 };
+const APP_VERSION = '1.0.0';
 
 /* ---------- 工具函数 ---------- */
 const byId = id => document.getElementById(id);
@@ -4598,6 +4599,13 @@ function settingsDrawer() {
       <div class="d-section-head"><h3>数据管理</h3></div>
       <button class="btn danger-ghost" id="wipeBtn" type="button">清空所有数据并重新初始化</button>
       <p class="d-footnote">将删除全部学生、工作记录与本地备份，并回到初始化向导。操作前建议先「备份并下载」。</p>
+    </div>
+
+    <div class="d-section">
+      <div class="d-section-head"><h3>关于</h3></div>
+      <div class="setting-row">
+        <div><strong>班主任工作台 · v${APP_VERSION}</strong><span>中学班主任班级管理工作台，数据保存在本机浏览器</span></div>
+      </div>
     </div>
   `);
 }
