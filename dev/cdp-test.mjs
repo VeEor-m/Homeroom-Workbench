@@ -238,7 +238,12 @@ await cdp.shot('02-attendance-edit');
 
 await cdp.eval(`document.querySelector('.drawer-close').click()`);
 await sleep(300);
-await cdp.eval(`state.drawerEditing = false`);
+await cdp.eval(`document.querySelector('.work-card[data-drawer="discipline"]').click()`);
+await sleep(400);
+check('编辑状态按面板独立', await cdp.eval(`document.querySelector('#drawerEditBtn').textContent.trim() === '编辑'`));
+await cdp.eval(`document.querySelector('.drawer-close').click()`);
+await sleep(300);
+await cdp.eval(`state.drawerEditingKey = null`);
 
 /* ---- 早读点名 ---- */
 await cdp.eval(`document.querySelector('.work-card[data-drawer="attendance"]').click()`);
@@ -442,7 +447,7 @@ await cdp.eval(`location.hash = 'workbench'`);
 await sleep(800);
 await cdp.eval(`document.querySelector('.work-card[data-drawer="homework"]').click()`);
 await sleep(450);
-await cdp.eval(`state.drawerEditing = false`);
+await cdp.eval(`state.drawerEditingKey = null`);
 await cdp.eval(`document.querySelector('#drawerEditBtn').click()`);
 await sleep(300);
 await cdp.eval(`document.querySelector('.d-section[data-editor="homework"] .mini-table tbody tr td .btn').click()`);
@@ -756,12 +761,14 @@ await cdp.eval(`document.querySelector('.drawer-close').click()`);
 await sleep(300);
 await cdp.eval(`document.querySelector('.work-card[data-drawer="activity"]').click()`);
 await sleep(400);
+await cdp.eval(`document.querySelector('#drawerEditBtn').click()`);
+await sleep(300);
 await cdp.eval(`document.querySelector('.d-section[data-editor="activity-held"] .record-card:first-child .edit-item-btn').click()`);
 await sleep(300);
 await cdp.eval(`(() => { const m = document.querySelector('.form-modal'); m.querySelector('[data-k="leader"]').value = '张老师'; m.querySelector('[data-save]').click(); })()`);
 await sleep(500);
 check('活动记录可编辑', await cdp.eval(`D.activities().held[0].leader === '张老师'`));
-await cdp.eval(`state.drawerEditing = false`);
+await cdp.eval(`state.drawerEditingKey = null`);
 await cdp.eval(`document.querySelector('.drawer-close').click()`);
 await sleep(300);
 

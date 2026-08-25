@@ -53,7 +53,7 @@ const state = {
   seatMoveMode: false,
   seatMoveSource: null,
   drawerKey: null,
-  drawerEditing: false,
+  drawerEditingKey: null,
   scheduleEditMode: false,
   schedImportData: null,
   importTab: 'backup',
@@ -1094,8 +1094,8 @@ async function deleteTodo(id) {
  * ============================================================ */
 function drawerShell(icon, title, subtitle, body, editableKey) {
   const editBtn = editableKey ? `
-    <button class="btn tiny drawer-edit-btn ${state.drawerEditing ? 'on' : ''}" id="drawerEditBtn" type="button">
-      ${state.drawerEditing ? '完成编辑' : '编辑'}
+    <button class="btn tiny drawer-edit-btn ${state.drawerEditingKey === editableKey ? 'on' : ''}" id="drawerEditBtn" type="button">
+      ${state.drawerEditingKey === editableKey ? '完成编辑' : '编辑'}
     </button>` : '';
   return `
     <div class="drawer-head">
@@ -1543,11 +1543,14 @@ function openDrawer(key) {
   app.classList.add('drawer-open');
   document.body.classList.add('drawer-lock');
   const closeBtn = byId('drawerClose');
-  if (closeBtn) closeBtn.focus();
+  if (closeBtn) {
+    closeBtn.addEventListener('click', closeDrawer);
+    closeBtn.focus();
+  }
   const editBtn = byId('drawerEditBtn');
   if (editBtn) {
     editBtn.addEventListener('click', () => {
-      state.drawerEditing = !state.drawerEditing;
+      state.drawerEditingKey = state.drawerEditingKey === key ? null : key;
       openDrawer(state.drawerKey);
     });
   }
@@ -1561,7 +1564,7 @@ function openDrawer(key) {
       openStudentForm(sid);
     });
   }
-  if (state.drawerEditing) enableDrawerEdit(key);
+  if (state.drawerEditingKey === key) enableDrawerEdit(key);
   bindDrawerContent(key);
 }
 
@@ -4558,7 +4561,10 @@ async function openSettingsDrawer() {
   byId('app').classList.add('drawer-open');
   document.body.classList.add('drawer-lock');
   const closeBtn = byId('drawerClose');
-  if (closeBtn) closeBtn.focus();
+  if (closeBtn) {
+    closeBtn.addEventListener('click', closeDrawer);
+    closeBtn.focus();
+  }
   bindSettingsDrawer();
 }
 
