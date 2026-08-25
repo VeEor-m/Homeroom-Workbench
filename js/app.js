@@ -5037,7 +5037,7 @@ function showInitScreen(mode) {
         <div class="init-options">
           <button class="init-option" data-opt="import" type="button">
             <b>导入花名册 / 备份</b>
-            <span>从 CSV 花名册或本应用导出的 JSON 备份导入</span>
+            <span>从 CSV / Excel 花名册或本应用导出的 JSON 备份导入</span>
           </button>
           <button class="init-option" data-opt="demo" type="button">
             <b>使用示例班级数据</b>
@@ -5049,7 +5049,10 @@ function showInitScreen(mode) {
           </button>
         </div>
         <div class="init-import-area" id="initImportArea" hidden>
-          <button class="btn ghost" id="initTemplateBtn" type="button">下载花名册模板</button>
+          <div class="init-tpl-row">
+            <button class="btn ghost" id="initTplCsv" type="button">下载 CSV 模板</button>
+            <button class="btn ghost" id="initTplXlsx" type="button">下载 Excel 模板</button>
+          </div>
           <label class="file-pick">
             <input type="file" id="initFile" accept=".csv,.xlsx,.json,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
             <span class="btn primary">选择文件</span>
@@ -5113,7 +5116,8 @@ function bindInitWizard() {
     });
   });
 
-  byId('initTemplateBtn').addEventListener('click', downloadRosterTemplate);
+  byId('initTplCsv').addEventListener('click', downloadRosterTemplate);
+  byId('initTplXlsx').addEventListener('click', () => downloadAsset('花名册模板.xlsx'));
 
   byId('initFile').addEventListener('change', async e => {
     const file = e.target.files[0];

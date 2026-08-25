@@ -2465,6 +2465,13 @@ body.drawer-lock { overflow: hidden; }
   gap: 10px;
 }
 
+.init-tpl-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .file-pick { cursor: pointer; }
 .file-pick input { display: none; }
 
