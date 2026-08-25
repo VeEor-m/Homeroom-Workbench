@@ -2186,9 +2186,27 @@ body.drawer-lock { overflow: hidden; }
 
 .seat.dim { opacity: .22; }
 
+.seat-empty {
+  border-style: dashed;
+  background: rgba(93, 155, 130, .05);
+  color: var(--muted);
+}
+
+.seat-empty::after {
+  content: '空';
+  font-size: 11px;
+  color: var(--muted);
+  opacity: .5;
+}
+
 .seat.empty-clickable {
   background: var(--warn-soft);
   border-color: rgba(201, 147, 63, .55);
+  border-style: dashed;
+}
+
+.seat.empty-clickable::after {
+  content: none;
 }
 
 .seat.empty-clickable:hover {
