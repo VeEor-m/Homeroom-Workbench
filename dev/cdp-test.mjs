@@ -753,6 +753,11 @@ await sleep(300);
 await cdp.eval(`(() => { const m = document.querySelector('.form-modal'); m.querySelector('[data-k="topic"]').value = '测试班会主题'; m.querySelector('[data-k="location"]').value = '本班教室'; m.querySelector('[data-save]').click(); })()`);
 await sleep(500);
 check('班会计划可编辑', await cdp.eval(`D.meetings().plan.some(x => x.topic === '测试班会主题' && x.location === '本班教室')`));
+const planCountBefore = await cdp.eval(`D.meetings().plan.length`);
+await cdp.eval(`window.confirm = () => false`);
+await cdp.eval(`document.querySelector('.d-section[data-editor="meeting-plan"] .timeline-item .btn').click()`);
+await sleep(500);
+check('删除取消后计划保留', await cdp.eval(`D.meetings().plan.length === ${planCountBefore}`));
 await cdp.eval(`window.confirm = () => true`);
 await cdp.eval(`document.querySelector('.d-section[data-editor="meeting-plan"] .timeline-item .btn').click()`);
 await sleep(500);
@@ -799,6 +804,27 @@ await cdp.eval(`window.confirm = () => true; document.querySelector('#impConfirm
 await sleep(900);
 check('花名册导入生效', await cdp.eval(`Store.getAllStudents().then(a => a.length === 1 && a[0].name === '张小明')`));
 check('班级信息不受影响', await cdp.eval(`AppData.settings.teacher === '测试老师2'`));
+check('替换导入保留学生 ID', await cdp.eval(`D.students()[0].id === 's01'`));
+check('替换导入后成绩关联保留', await cdp.eval(`(() => {
+  const id = D.students()[0].id;
+  return D.grades().exams.some(e => e.scores && e.scores[id] && Object.keys(e.scores[id]).length > 0);
+})()`));
+check('替换导入新学生 ID 唯一', await cdp.eval(`(() => {
+  const before = D.students();
+  const merged = mergeRosterReplace([
+    { name: '新同学甲', stuNo: '20990001', gender: '男', group: 1 },
+    { name: '新同学乙', stuNo: '20990002', gender: '女', group: 2 }
+  ]);
+  const ids = merged.map(s => s.id);
+  return new Set(ids).size === ids.length && ids.every(id => !before.some(b => b.id === id));
+})()`));
+check('花名册导出含学籍号列', await cdp.eval(`(() => {
+  window.__csv = null;
+  window.downloadText = (text) => { window.__csv = text; };
+  exportRosterCSV();
+  const head = window.__csv.split('\\n')[0];
+  return head.includes('学籍号') && head.indexOf('学籍号') > head.indexOf('姓名');
+})()`));
 
 await cdp.eval(`document.querySelector('#importBtn').click()`);
 await sleep(400);
@@ -851,6 +877,70 @@ await sleep(200);
 check('完整备份页签切换', await cdp.eval(`document.querySelector('.import-pane[data-pane="backup"]').classList.contains('active')`));
 await cdp.eval(`document.querySelector('.form-modal [data-close]').click()`);
 await sleep(300);
+
+/* ================= 设置：小组数量 / 值日人数可配置 ================= */
+await cdp.eval(`document.querySelector('#settingsBtn').click()`);
+await sleep(400);
+await cdp.eval(`(() => { const i = document.querySelector('#setGroups'); i.value = '4'; document.querySelector('#saveInfoBtn').click(); })()`);
+await sleep(500);
+check('小组数量设置生效', await cdp.eval(`AppData.settings.groups === 4`));
+await cdp.eval(`closeDrawer(); location.hash = 'seating'`);
+await sleep(900);
+check('座次表小组数跟随设置', await cdp.eval(`document.querySelectorAll('#groupChips .gchip').length === 5`));
+
+await cdp.eval(`document.querySelector('#settingsBtn').click()`);
+await sleep(400);
+await cdp.eval(`(() => { const i = document.querySelector('#setDutySize'); i.value = '4'; document.querySelector('#saveInfoBtn').click(); })()`);
+await sleep(500);
+check('值日人数设置生效', await cdp.eval(`AppData.settings.dutySize === 4`));
+await cdp.eval(`closeDrawer(); location.hash = 'duty'`);
+await sleep(900);
+await cdp.eval(`state.dutyEdit = false`);
+await cdp.eval(`(() => {
+  const d = { tasks: ['扫地', '擦黑板'], weeks: [] };
+  AppData.records.duty = d;
+  return Store.putRecord('duty', d);
+})()`);
+await sleep(300);
+await cdp.eval(`render()`);
+await sleep(400);
+await cdp.eval(`document.querySelector('#dutyAutoBtn').click()`);
+await sleep(800);
+check('值日页显示新人数', await cdp.eval(`document.querySelector('.page-head p').textContent.includes('每天 4 人轮值')`));
+check('自动排班按新人数', await cdp.eval(`(() => {
+  const d = D.duty();
+  const last = d.weeks.slice().sort((a, b) => a.weekStart.localeCompare(b.weekStart)).pop();
+  return Object.values(last.assigned).every(a => a.length === 4);
+})()`));
+await cdp.eval(`document.querySelector('#dutyEditBtn').click()`);
+await sleep(300);
+await cdp.eval(`document.querySelector('[data-editday="周一"]').click()`);
+await sleep(300);
+await cdp.eval(`(() => { qsa('.duty-pick-chip.on').forEach(c => c.classList.remove('on')); document.querySelector('#dutyPickSave').click(); })()`);
+await sleep(300);
+check('值日名单校验随人数', await cdp.eval(`document.querySelector('.form-modal .form-error').textContent.includes('请选择 4 名学生')`));
+await cdp.eval(`document.querySelector('.form-modal [data-close]').click()`);
+await sleep(200);
+
+/* ================= 课程表：导入科目可继续编辑 ================= */
+await cdp.eval(`(() => {
+  const s = D.schedule();
+  s.cells['周一-第1节'] = { subject: '综合实践', teacher: '王老师' };
+  AppData.records.schedule = s;
+  return Store.putRecord('schedule', s);
+})()`);
+await cdp.eval(`location.hash = 'schedule'`);
+await sleep(900);
+await cdp.eval(`document.querySelector('#scheduleEditBtn').click()`);
+await sleep(300);
+await cdp.eval(`document.querySelector('.sc-cell[data-day="周一"][data-period="第1节"]').click()`);
+await sleep(300);
+check('课程表下拉含导入科目', await cdp.eval(`(() => {
+  const sel = document.querySelector('.form-modal [data-k="subject"]');
+  return [...sel.options].some(o => o.textContent === '综合实践');
+})()`));
+await cdp.eval(`document.querySelector('.form-modal [data-close]').click()`);
+await sleep(200);
 
 /* ================= 收尾 ================= */
 try {

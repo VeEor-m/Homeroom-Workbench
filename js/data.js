@@ -357,10 +357,9 @@ const GRADES = {
   })
 };
 
-/* 值日表：按周排班，每周一~周五每天 6 人，任务循环分配 */
-function buildDutyWeek(weekStart, students, tasks, offset) {
+/* 值日表：按周排班，每周一~周五每天 perDay 人，任务循环分配 */
+function buildDutyWeek(weekStart, students, tasks, offset, perDay = 6) {
   const days = ['周一', '周二', '周三', '周四', '周五'];
-  const perDay = 6;
   const assigned = {};
   days.forEach((day, di) => {
     const start = (offset * days.length * perDay + di * perDay) % students.length;

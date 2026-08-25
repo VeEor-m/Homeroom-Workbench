@@ -285,6 +285,14 @@ async function loadAllData() {
     AppData.settings.classroom = Object.assign({}, CLASSROOM_DEFAULT);
     changed = true;
   }
+  if (!AppData.settings.groups) {
+    AppData.settings.groups = 8;
+    changed = true;
+  }
+  if (!AppData.settings.dutySize) {
+    AppData.settings.dutySize = 6;
+    changed = true;
+  }
   if (changed) await Store.putRecord('settings', AppData.settings);
   AppData.students = students;
   let stuChanged = false;
@@ -498,7 +506,7 @@ function renderManual() {
     `),
     section('m-duty', '值日表', `
       <ul>
-        <li>「＋ 自动排班」按花名册生成本学期轮值（每天 6 人、每周轮转），可切换周次。</li>
+        <li>「＋ 自动排班」按花名册生成本学期轮值（每天 ${classDutySize()} 人、每周轮转），可切换周次。</li>
         <li>每天可<b>打卡</b>记录完成情况（带备注，可撤销）。</li>
         <li>编辑模式可调整任一天名单；「复制本周值日表」生成可发班级群的文本。</li>
       </ul>
@@ -1863,6 +1871,7 @@ async function addDrawerItem(key, type, values) {
 }
 
 async function deleteDrawerItem(key, type, idx) {
+  if (!confirm('确定删除这条记录吗？此操作不可恢复。')) return;
   const mod = moduleKey(type.split('-')[0]);
   const field = type.split('-')[1];
   const h = EDIT_HANDLERS[mod][field];
@@ -2086,6 +2095,16 @@ function classroomDims() {
   return { rows, cols };
 }
 
+function classGroups() {
+  const g = (AppData.settings && AppData.settings.groups) || 8;
+  return Math.min(Math.max(parseInt(g, 10) || 8, 1), 12);
+}
+
+function classDutySize() {
+  const n = (AppData.settings && AppData.settings.dutySize) || 6;
+  return Math.min(Math.max(parseInt(n, 10) || 6, 1), 12);
+}
+
 function seatRow(rowNo, cols) {
   let cellsHtml = '';
   for (let c = 1; c <= cols; c += 1) {
@@ -2101,7 +2120,7 @@ function seatRow(rowNo, cols) {
 
 function renderSeating() {
   const dims = classroomDims();
-  const groupChips = [0, 1, 2, 3, 4, 5, 6, 7, 8].map(g => `
+  const groupChips = [0].concat(Array.from({ length: classGroups() }, (_, i) => i + 1)).map(g => `
     <button class="gchip g${g}" data-group="${g}" type="button">
       ${g ? `<i class="dot"></i>第 ${g} 组` : '全部'}
     </button>`).join('');
@@ -2458,9 +2477,11 @@ function openStudentForm(sid, defRow, defCol) {
       parent: root.querySelector('[data-k="parent"]').value.trim(),
       phone: root.querySelector('[data-k="phone"]').value.trim()
     };
+    const renamed = s && name !== s.name;
     await saveStudent(stu);
     closeFormModal();
     render();
+    if (renamed) showToast('已改名；作业未交名单、值日排班等历史记录中的旧姓名不会自动更新');
   });
 
   const unseatBtn = root.querySelector('#unseatBtn');
@@ -2476,7 +2497,7 @@ function openStudentForm(sid, defRow, defCol) {
   const delBtn = root.querySelector('#delStudentBtn');
   if (delBtn) {
     delBtn.addEventListener('click', async () => {
-      if (confirm(`确定删除学生「${s.name}」吗？此操作不可恢复。`)) {
+      if (confirm(`确定删除学生「${s.name}」吗？此操作不可恢复。\n提示：作业未交名单、值日排班、班会/活动记录中的姓名不会自动更新。`)) {
         await removeStudent(s.id);
         closeFormModal();
         render();
@@ -2621,7 +2642,7 @@ function bindRosterEvents() {
     btn.addEventListener('click', async () => {
       const s = D.studentById()[btn.dataset.del];
       if (!s) return;
-      if (!confirm(`确定删除学生「${s.name}」吗？此操作不可恢复。`)) return;
+      if (!confirm(`确定删除学生「${s.name}」吗？此操作不可恢复。\n提示：作业未交名单、值日排班、班会/活动记录中的姓名不会自动更新。`)) return;
       await removeStudent(s.id);
       renderRoster();
       showToast(`已删除「${s.name}」`);
@@ -2871,7 +2892,9 @@ function renderGrades() {
           </table>
         </div>
       </div>
-    </div>`;
+    </div>
+
+    <p class="d-footnote">总分按 ${GRADE_SUBJECTS.length} 科满分计算，缺考科目按 0 分计入；学生档案中会标注缺考科数。</p>`;
 
   bindGradesEvents();
 }
@@ -2985,6 +3008,11 @@ function gradeDetailHtml(sid) {
           <span class="tag tag-blue">第 ${s.group} 组</span>
           ${total != null ? `<span class="tag tag-green">总分 ${total}</span>` : ''}
           ${rank ? `<span class="tag tag-cream">班内第 ${rank.rank} 名</span>` : ''}
+          ${(() => {
+            const row = exam.scores[sid] || {};
+            const missing = GRADE_SUBJECTS.filter(subj => row[subj] == null).length;
+            return missing ? `<span class="tag tag-warn">缺考 ${missing} 科（按 0 分计）</span>` : '';
+          })()}
         </div>
       </div>
     </div>
@@ -3179,12 +3207,16 @@ function generateDutyWeeks(count = 12) {
     return;
   }
   const tasks = d.tasks.length ? d.tasks : ['扫地', '擦黑板', '摆桌椅', '倒垃圾', '浇花'];
+  const perDay = classDutySize();
+  if (students.length < perDay) {
+    showToast(`值日人数（${perDay} 人）多于花名册人数（${students.length} 人），自动排班会循环安排同学`, 'warn');
+  }
   const startMonday = mondayOf(TODAY);
   const offsetBase = d.weeks.length;
   for (let i = 0; i < count; i += 1) {
     const weekStart = addDays(startMonday, i * 7);
     if (d.weeks.some(w => w.weekStart === weekStart)) continue;
-    d.weeks.push(Object.assign({ id: nextDutyWeekId(d) }, buildDutyWeek(weekStart, students, tasks, offsetBase + i)));
+    d.weeks.push(Object.assign({ id: nextDutyWeekId(d) }, buildDutyWeek(weekStart, students, tasks, offsetBase + i, perDay)));
   }
   d.weeks.sort((a, b) => a.weekStart.localeCompare(b.weekStart));
 }
@@ -3197,7 +3229,7 @@ function renderDuty() {
       <div class="placeholder card">
         <div class="placeholder-icon">${ICONS.duty}</div>
         <h3>还没有值日排班</h3>
-        <p>点击「自动排班」按花名册生成本学期轮值表（每天 6 人，每周轮转）。</p>
+        <p>点击「自动排班」按花名册生成本学期轮值表（每天 ${classDutySize()} 人，每周轮转）。</p>
         <div class="placeholder-points">
           <button class="btn primary" id="dutyAutoBtn" type="button">＋ 自动排班</button>
         </div>
@@ -3244,7 +3276,7 @@ function renderDuty() {
 
   byId('content').innerHTML = `
     <div class="page-head">
-      <div><h2>值日表</h2><p>${classInfo().className} · ${fmtDate(week.weekStart)} 起 · 每天 6 人轮值</p></div>
+      <div><h2>值日表</h2><p>${classInfo().className} · ${fmtDate(week.weekStart)} 起 · 每天 ${classDutySize()} 人轮值</p></div>
       <div class="page-actions">
         <button class="btn ghost" id="dutyCopyBtn" type="button" title="生成可粘贴到班级群的文本">复制本周值日表</button>
         <button class="btn" id="dutyAutoBtn" type="button">＋ 自动排班</button>
@@ -3343,7 +3375,7 @@ function openDutyPicker(day, week) {
     <div class="form-card card" role="dialog" aria-modal="true">
       <div class="form-head"><h3>${day} 值日名单</h3><button class="drawer-close" data-close type="button">${ICONS.x}</button></div>
       <div class="form-body">
-        <p class="import-hint">${day}（${fmtDate(addDays(w.weekStart, DUTY_DAYS.indexOf(day)))}）值日，请选择 6 名学生，任务自动轮换。</p>
+        <p class="import-hint">${day}（${fmtDate(addDays(w.weekStart, DUTY_DAYS.indexOf(day)))}）值日，请选择 ${classDutySize()} 名学生，任务自动轮换。</p>
         <div class="duty-picker">${chips}</div>
         <p class="form-error" hidden></p>
       </div>
@@ -3361,8 +3393,8 @@ function openDutyPicker(day, week) {
   root.querySelector('#dutyPickSave').addEventListener('click', async () => {
     const names = qsa('.duty-pick-chip.on', root).map(c => c.dataset.name);
     const err = root.querySelector('.form-error');
-    if (names.length !== 6) {
-      err.textContent = `请选择 6 名学生（当前 ${names.length} 人）`;
+    if (names.length !== classDutySize()) {
+      err.textContent = `请选择 ${classDutySize()} 名学生（当前 ${names.length} 人）`;
       err.hidden = false;
       return;
     }
@@ -3718,8 +3750,19 @@ function openScheduleCellForm(day, period, key) {
     subject: cur ? cur.subject : '',
     teacher: cur ? (cur.teacher || (s.teachers[cur.subject] || '')) : ''
   };
+  // 科目下拉 = 内置科目 + 当前课表/导入数据中出现过的科目，避免导入新科目后无法编辑
+  const knownSubjects = [];
+  const seen = {};
+  [SUBJECTS, Object.values(s.cells || {}).map(c => c && c.subject), Object.keys(s.teachers || {})].forEach(list => {
+    list.forEach(sub => {
+      if (sub && !seen[sub]) {
+        seen[sub] = 1;
+        knownSubjects.push(sub);
+      }
+    });
+  });
   const subjectOptions = ['<option value="">（清除该课）</option>']
-    .concat(SUBJECTS.map(sub => `<option value="${esc(sub)}" ${values.subject === sub ? 'selected' : ''}>${sub}</option>`)).join('');
+    .concat(knownSubjects.map(sub => `<option value="${esc(sub)}" ${values.subject === sub ? 'selected' : ''}>${sub}</option>`)).join('');
 
   const root = document.createElement('div');
   root.className = 'form-modal';
@@ -4273,13 +4316,15 @@ function openImportDialog(initialTab) {
         render();
         showToast('备份恢复成功');
       } else if (state.importData.type === 'roster') {
-        if (!confirm(`将用 ${state.importData.students.length} 名学生替换当前名单（${studentCount()} 人），确定？`)) return;
+        const incoming = state.importData.students;
+        if (!confirm(`将用 ${incoming.length} 名学生替换当前名单（${studentCount()} 人）；同名 / 同学籍号的学生会保留原档案与成绩、点名记录，确定？`)) return;
+        const merged = mergeRosterReplace(incoming);
         await Store.clearStudents();
-        await Store.putStudents(state.importData.students);
-        AppData.students = state.importData.students;
+        await Store.putStudents(merged);
+        AppData.students = merged;
         closeFormModal();
         render();
-        showToast(`花名册导入成功（${state.importData.students.length} 人）`);
+        showToast(`花名册导入成功（${merged.length} 人，已保留匹配学生的档案关联）`);
       } else if (state.importData.type === 'schedule') {
         const next = mergeScheduleImport(state.importData.parsed);
         await saveRecord('schedule', next);
@@ -4307,9 +4352,9 @@ function openImportDialog(initialTab) {
  * 顶栏「导出数据」中心（花名册 / 课程表 / 完整备份）
  * ============================================================ */
 function exportRosterCSV() {
-  const header = ['姓名', '性别', '小组', '排', '列', '班委职务', '家长姓名', '联系电话'];
+  const header = ['姓名', '学籍号', '性别', '小组', '排', '列', '班委职务', '家长姓名', '联系电话'];
   const rows = AppData.students.map(s => [
-    s.name, s.gender, s.group, s.row || '', s.col || '', s.role || '', s.parent || '', s.phone || ''
+    s.name, s.stuNo || '', s.gender, s.group, s.row || '', s.col || '', s.role || '', s.parent || '', s.phone || ''
   ]);
   const csv = '\ufeff' + [header.join(',')].concat(rows.map(r => r.join(','))).join('\n');
   downloadText(csv, `花名册-${classInfo().className}.csv`, 'text/csv;charset=utf-8');
@@ -4318,9 +4363,9 @@ function exportRosterCSV() {
 
 function exportRosterXlsx() {
   const rows = AppData.students.map(s => [
-    s.name, s.gender, Number(s.group) || 1, s.row || '', s.col || '', s.role || '', s.parent || '', s.phone || ''
+    s.name, s.stuNo || '', s.gender, Number(s.group) || 1, s.row || '', s.col || '', s.role || '', s.parent || '', s.phone || ''
   ]);
-  buildXlsxBlob('花名册', ['姓名', '性别', '小组', '排', '列', '班委职务', '家长姓名', '联系电话'], rows, [12, 8, 8, 8, 8, 14, 12, 16])
+  buildXlsxBlob('花名册', ['姓名', '学籍号', '性别', '小组', '排', '列', '班委职务', '家长姓名', '联系电话'], rows, [12, 11, 8, 8, 8, 8, 14, 12, 16])
     .then(blob => {
       downloadBlob(blob, `花名册-${classInfo().className}.xlsx`);
       showToast(`花名册已导出为 Excel（${AppData.students.length} 人）`);
@@ -4500,6 +4545,8 @@ function settingsDrawer() {
         <label class="fm-field"><span>老师姓名 *</span><input id="setTeacher" type="text" value="${esc(s.teacher || '')}"></label>
         <label class="fm-field"><span>班级名称</span><input id="setClassName" type="text" value="${esc(s.className || '')}"></label>
         <label class="fm-field"><span>学期</span><input id="setSemester" type="text" value="${esc(s.semester || '')}"></label>
+        <label class="fm-field"><span>小组数量</span><input id="setGroups" type="number" min="1" max="12" value="${s.groups || 8}"></label>
+        <label class="fm-field"><span>值日人数 / 天</span><input id="setDutySize" type="number" min="1" max="12" value="${s.dutySize || 6}"></label>
       </div>
       <div class="settings-actions"><button class="btn primary" id="saveInfoBtn" type="button">保存班级信息</button></div>
     </div>
@@ -4589,10 +4636,17 @@ function bindSettingsDrawer() {
     s.teacher = teacher;
     s.className = byId('setClassName').value.trim() || s.className;
     s.semester = byId('setSemester').value.trim() || s.semester;
+    const nextGroups = Math.min(Math.max(Number(byId('setGroups').value) || 8, 1), 12);
+    const nextDutySize = Math.min(Math.max(Number(byId('setDutySize').value) || 6, 1), 12);
+    const dutySizeChanged = nextDutySize !== (s.dutySize || 6);
+    s.groups = nextGroups;
+    s.dutySize = nextDutySize;
     await Store.putRecord('settings', s);
     refreshTopMeta();
     render();
-    showToast('班级信息已保存');
+    showToast(dutySizeChanged && D.duty().weeks.length
+      ? '班级信息已保存；值日人数已更新，已有排班保持原样，重新自动排班按新人数生成'
+      : '班级信息已保存');
   });
 
   byId('backupEnabled').addEventListener('change', saveBackupConfig);
@@ -4722,23 +4776,82 @@ function parseRosterCSV(text) {
 }
 
 function studentsFromGrid(grid) {
-  let rows = grid.map(r => (r || []).map(c => String(c == null ? '' : c).trim()));
-  const head = (rows[0] || []).map(c => c.toLowerCase());
-  if (head.some(c => c.includes('姓名') || c.includes('name'))) rows = rows.slice(1);
-  return rows.map((cols, i) => {
-    const name = cols[0] || '';
+  const rows = grid.map(r => (r || []).map(c => String(c == null ? '' : c).trim()));
+  if (!rows.length || !rows.some(r => r.some(Boolean))) throw new Error('文件内容为空');
+  const head = (rows[0] || []).map(h => String(h).toLowerCase());
+  const headerDetected = head.some(h => h.includes('姓名') || h.includes('学籍号') || h.includes('name'));
+  const dataRows = headerDetected ? rows.slice(1) : rows;
+
+  const colOf = label => {
+    const i = head.findIndex(h => h.includes(label));
+    return i >= 0 ? i : -1;
+  };
+  const idx = headerDetected ? {
+    name: colOf('姓名'),
+    stuNo: colOf('学籍号'),
+    gender: colOf('性别'),
+    group: colOf('小组'),
+    row: colOf('排'),
+    col: colOf('列'),
+    role: colOf('班委'),
+    parent: colOf('家长'),
+    phone: colOf('联系电话')
+  } : {
+    name: 0, stuNo: -1, gender: 1, group: 2, row: 3, col: 4, role: 5, parent: 6, phone: 7
+  };
+
+  return dataRows.map((cols, i) => {
+    const name = idx.name >= 0 ? cols[idx.name] : cols[0];
     if (!name) throw new Error(`第 ${i + 2} 行缺少姓名`);
-    return {
+    const stu = {
       id: 's' + String(i + 1).padStart(2, '0'),
       name,
-      gender: cols[1] || '男',
-      group: Number(cols[2]) || 1,
-      row: Number(cols[3]) || 0,
-      col: Number(cols[4]) || 0,
-      role: cols[5] || '',
-      parent: cols[6] || '',
-      phone: cols[7] || ''
+      gender: idx.gender >= 0 ? (cols[idx.gender] || '男') : '男',
+      group: idx.group >= 0 ? (Number(cols[idx.group]) || 1) : 1,
+      row: idx.row >= 0 ? (Number(cols[idx.row]) || 0) : 0,
+      col: idx.col >= 0 ? (Number(cols[idx.col]) || 0) : 0,
+      role: idx.role >= 0 ? (cols[idx.role] || '') : '',
+      parent: idx.parent >= 0 ? (cols[idx.parent] || '') : '',
+      phone: idx.phone >= 0 ? (cols[idx.phone] || '') : ''
     };
+    if (idx.stuNo >= 0 && cols[idx.stuNo]) stu.stuNo = cols[idx.stuNo];
+    return stu;
+  });
+}
+
+/* 花名册“替换导入”时尽量保留已有学生 ID：按学籍号 / 姓名匹配，避免成绩、点名记录失联 */
+function mergeRosterReplace(incoming) {
+  const existing = D.students();
+  const byStuNo = {};
+  const byName = {};
+  existing.forEach(s => {
+    if (s.stuNo) byStuNo[s.stuNo] = s;
+    byName[s.name] = s;
+  });
+  const used = new Set(existing.map(s => s.id));
+  let seq = 1;
+  const nextId = () => {
+    while (used.has('s' + String(seq).padStart(2, '0'))) seq += 1;
+    const id = 's' + String(seq).padStart(2, '0');
+    used.add(id);
+    return id;
+  };
+  return incoming.map(row => {
+    const old = (row.stuNo && byStuNo[row.stuNo]) || byName[row.name] || null;
+    if (old) {
+      return Object.assign({}, old, {
+        name: row.name,
+        gender: row.gender,
+        group: row.group,
+        row: row.row,
+        col: row.col,
+        role: row.role,
+        parent: row.parent,
+        phone: row.phone,
+        stuNo: row.stuNo || old.stuNo
+      });
+    }
+    return Object.assign({ id: nextId() }, row);
   });
 }
 
@@ -4817,8 +4930,8 @@ async function parseXlsxGrid(buf) {
 }
 
 function downloadRosterTemplate() {
-  const header = ['姓名', '性别', '小组', '排', '列', '班委职务', '家长姓名', '联系电话'].join(',');
-  const example = ['张小明', '男', '1', '1', '1', '班长', '张某某', '13800000000'].join(',');
+  const header = ['姓名', '学籍号', '性别', '小组', '排', '列', '班委职务', '家长姓名', '联系电话'].join(',');
+  const example = ['张小明', '20260001', '男', '1', '1', '1', '班长', '张某某', '13800000000'].join(',');
   const blob = new Blob(['\ufeff' + header + '\n' + example + '\n'], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -5087,6 +5200,8 @@ async function finishInit() {
     semester: byId('initSemester').value.trim() || classInfo().semester,
     backup: { enabled: true, frequency: 'daily', keep: 5, lastBackup: null },
     classroom: Object.assign({}, CLASSROOM_DEFAULT),
+    groups: 8,
+    dutySize: 6,
     initializedAt: new Date().toISOString()
   };
 
