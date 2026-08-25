@@ -47,6 +47,22 @@ body {
 }
 
 svg { display: block; }
+
+/* 应用图标统一为线条风格：无填充、描边跟随文字颜色 */
+.nav-icon svg,
+.work-icon svg,
+.work-arrow svg,
+.placeholder-icon svg,
+.drawer-icon svg,
+.menu-btn svg,
+.collapse-btn svg,
+.search-icon svg {
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 button { font-family: inherit; }
 
 /* ---------- 整体布局 ---------- */
