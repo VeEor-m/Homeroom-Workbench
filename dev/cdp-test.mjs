@@ -129,13 +129,16 @@ await sleep(500);
 check('返回工作台', await cdp.eval(`document.querySelector('.page-title').textContent === '工作台'`));
 
 /* ---- 今日课程 ---- */
-check('今日课程节数统计', await cdp.eval(`document.querySelector('#todayCoursesStat strong').textContent.startsWith('8')`));
+const todayCount = await cdp.eval(`todayCourseCount()`);
+check('今日课程节数统计', await cdp.eval(`document.querySelector('#todayCoursesStat strong').textContent.startsWith('${todayCount}')`));
 await cdp.eval(`document.querySelector('#todayCoursesStat').click()`);
 await sleep(350);
 check('今日课程浮层打开', await cdp.eval(`!document.querySelector('#todayPopover').hidden`));
-check('浮层显示今日课程', await cdp.eval(`document.querySelector('#todayPopover').textContent.includes('周一') && document.querySelector('#todayPopover').textContent.includes('数学') && document.querySelector('#todayPopover').textContent.includes('王老师')`));
+const realDay = await cdp.eval(`'周' + WEEK_CN[new Date().getDay()]`);
+check('欢迎语日期实时', await cdp.eval(`document.querySelector('.welcome p').textContent.includes('${realDay}')`));
+check('浮层显示今日课程', await cdp.eval(`document.querySelector('#todayPopover').textContent.includes('${realDay}') && document.querySelector('#todayPopover').textContent.includes('数学') && document.querySelector('#todayPopover').textContent.includes('王老师')`));
 check('浮层含早读', await cdp.eval(`document.querySelector('#todayPopover').textContent.includes('早读')`));
-check('我的课高亮逻辑', await cdp.eval(`buildTodayCourses('张老师').courses.filter(c => c.mine).length === 1`));
+check('我的课高亮逻辑', await cdp.eval(`buildTodayCourses('张老师').courses.filter(c => c.mine).length >= 1`));
 await cdp.eval(`(() => {
   const s = document.querySelector('#todayCoursesStat');
   const p = document.querySelector('#todayPopover');

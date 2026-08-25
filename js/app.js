@@ -169,6 +169,31 @@ function greeting() {
   return '晚上好';
 }
 
+function realTodayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+const DAILY_ENCOURAGEMENT = [
+  '新的一周，班级日常尽在掌握。',
+  '今天也要元气满满，加油！',
+  '每一份用心，都会成为学生成长的印记。',
+  '班级管理有条不紊，今天继续加油！',
+  '细心一点，用心一点，一切都会更好。',
+  '保持好心情，学生也能感受到温暖。',
+  '新的一天，新的进步，一起努力！',
+  '稳扎稳打，今天也把每件事做好。',
+  '多点耐心，多点陪伴，静待花开。',
+  '今日事今日毕，工作生活两不误。',
+  '你的坚持，终将美好。',
+  '用心带班，用爱育人。'
+];
+
+function dailyEncouragement() {
+  const days = Math.floor(Date.now() / 86400000);
+  return DAILY_ENCOURAGEMENT[days % DAILY_ENCOURAGEMENT.length];
+}
+
 function avatar(name) {
   return esc(name.charAt(0));
 }
@@ -826,7 +851,8 @@ function todoItemHtml(t) {
 /* ---------- 今日课程 ---------- */
 function buildTodayCourses(teacherName) {
   const s = D.schedule();
-  const day = '周' + WEEK_CN[new Date(TODAY + 'T00:00:00').getDay()];
+  const today = realTodayISO();
+  const day = '周' + WEEK_CN[new Date(today + 'T00:00:00').getDay()];
   const courses = s.periods.map(p => {
     const c = s.cells[`${day}-${p}`];
     return {
@@ -836,7 +862,7 @@ function buildTodayCourses(teacherName) {
       mine: !!(c && c.subject && c.teacher && teacherName && c.teacher === teacherName)
     };
   });
-  return { day, dateText: fmtDate(TODAY), courses };
+  return { day, dateText: fmtDate(today), courses };
 }
 
 function todayCourseCount() {
@@ -915,7 +941,7 @@ function renderWorkbench() {
     <div class="welcome card">
       <div class="welcome-left">
         <h2>${greeting()}，${classInfo().teacher}</h2>
-        <p>今天是 ${fmtDate(TODAY)}，新的一周，班级日常尽在掌握。</p>
+        <p>今天是 ${fmtDate(realTodayISO())}，${dailyEncouragement()}</p>
       </div>
       <div class="welcome-stats">
         <div class="ws-item"><strong>${a.present}<span>/${a.total}</span></strong><span>今日出勤</span></div>
