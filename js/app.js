@@ -3125,6 +3125,17 @@ function downloadGradesTemplate() {
   downloadText('\ufeff' + head + '\n' + example + '\n', '成绩导入模板.csv', 'text/csv;charset=utf-8');
 }
 
+function downloadGradesTemplateXlsx() {
+  const header = ['姓名'].concat(GRADE_SUBJECTS);
+  const example = ['示例学生'].concat(GRADE_SUBJECTS.map(() => '85'));
+  buildXlsxBlob('成绩模板', header, [example], [12].concat(GRADE_SUBJECTS.map(() => 9)))
+    .then(blob => {
+      downloadBlob(blob, '成绩导入模板.xlsx');
+      showToast('成绩 Excel 模板已下载');
+    })
+    .catch(e => showToast('Excel 模板生成失败：' + e.message, 'warn'));
+}
+
 function parseGradesGrid(grid) {
   const rows = grid.map(r => (r || []).map(c => String(c == null ? '' : c).trim())).filter(r => r.some(Boolean));
   if (!rows.length) throw new Error('文件内容为空');
@@ -4168,8 +4179,8 @@ function openImportDialog(initialTab) {
           <p class="import-hint">从 <b>CSV / Excel</b> 导入花名册，将<b>替换当前学生名单</b>。列顺序：姓名、性别、小组、排、列、班委职务、家长姓名、联系电话。</p>
           <div class="init-import-area">
             <div class="import-tpl-row">
+              <button class="btn ghost" data-tpl="roster-xlsx" type="button">下载 Excel 模板（推荐）</button>
               <button class="btn ghost" data-tpl="roster-csv" type="button">下载 CSV 模板</button>
-              <button class="btn ghost" data-tpl="roster-xlsx" type="button">下载 Excel 模板</button>
             </div>
             <label class="file-pick">
               <input type="file" id="impRosterFile" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
@@ -4183,8 +4194,8 @@ function openImportDialog(initialTab) {
           <p class="import-hint">从 <b>CSV / Excel</b> 导入课程表，覆盖当前课表；任课教师合并更新、调课记录保留。格内写「科目」或「科目/教师」。</p>
           <div class="init-import-area">
             <div class="import-tpl-row">
+              <button class="btn ghost" data-tpl="schedule-xlsx" type="button">下载 Excel 模板（推荐）</button>
               <button class="btn ghost" data-tpl="schedule-csv" type="button">下载 CSV 模板</button>
-              <button class="btn ghost" data-tpl="schedule-xlsx" type="button">下载 Excel 模板</button>
             </div>
             <label class="file-pick">
               <input type="file" id="impSchedFile" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
@@ -4198,7 +4209,8 @@ function openImportDialog(initialTab) {
           <p class="import-hint">从 <b>CSV / Excel</b> 导入成绩：首列为「姓名」（或学籍号），其余列为科目，将新建一场考试。</p>
           <div class="init-import-area">
             <div class="import-tpl-row">
-              <button class="btn ghost" data-tpl="grades-csv" type="button">下载成绩模板</button>
+              <button class="btn ghost" data-tpl="grades-xlsx" type="button">下载 Excel 模板（推荐）</button>
+              <button class="btn ghost" data-tpl="grades-csv" type="button">下载 CSV 模板</button>
             </div>
             <label class="file-pick">
               <input type="file" id="impGradeFile" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
@@ -4234,6 +4246,7 @@ function openImportDialog(initialTab) {
     'roster-xlsx': () => downloadAsset('花名册模板.xlsx'),
     'schedule-csv': downloadScheduleTemplate,
     'schedule-xlsx': () => downloadAsset('课程表模板.xlsx'),
+    'grades-xlsx': downloadGradesTemplateXlsx,
     'grades-csv': downloadGradesTemplate
   };
   qsa('[data-tpl]', root).forEach(btn => {
@@ -5050,8 +5063,8 @@ function showInitScreen(mode) {
         </div>
         <div class="init-import-area" id="initImportArea" hidden>
           <div class="init-tpl-row">
+            <button class="btn ghost" id="initTplXlsx" type="button">下载 Excel 模板（推荐）</button>
             <button class="btn ghost" id="initTplCsv" type="button">下载 CSV 模板</button>
-            <button class="btn ghost" id="initTplXlsx" type="button">下载 Excel 模板</button>
           </div>
           <label class="file-pick">
             <input type="file" id="initFile" accept=".csv,.xlsx,.json,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
