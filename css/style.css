@@ -2245,6 +2245,12 @@ body.drawer-lock { overflow: hidden; }
   .app.sidebar-open .sidebar {
     transform: none;
     box-shadow: 20px 0 60px rgba(35, 56, 48, .22);
+    z-index: 215;
+  }
+
+  .app.sidebar-open .drawer-backdrop {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .app.collapsed .sidebar { width: var(--sidebar-w); }
@@ -2276,6 +2282,35 @@ body.drawer-lock { overflow: hidden; }
 @media (max-width: 420px) {
   .seat { width: 58px; min-height: 48px; }
   .seat-name { font-size: 11px; }
+}
+
+/* 手机窄屏：顶栏信息与操作按钮换行，避免横向溢出 */
+@media (max-width: 620px) {
+  .topbar {
+    flex-wrap: wrap;
+    gap: 8px 10px;
+    min-height: auto;
+    padding: 8px 12px;
+  }
+
+  .topbar-meta {
+    margin-left: 0;
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 6px 8px;
+  }
+
+  .topbar-actions {
+    margin-left: 0;
+    padding-left: 0;
+    border-left: none;
+    flex-wrap: wrap;
+  }
+
+  .content { padding: 14px 12px 28px; }
+
+  .page-head { flex-direction: column; align-items: stretch; }
+  .page-actions { flex-wrap: wrap; }
 }
 
 /* ---------- 初始化向导 / 班级设置 ---------- */

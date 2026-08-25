@@ -1579,6 +1579,7 @@ function openDrawer(key) {
 
 function closeDrawer() {
   byId('app').classList.remove('drawer-open');
+  byId('app').classList.remove('sidebar-open');
   document.body.classList.remove('drawer-lock');
 }
 
@@ -5248,6 +5249,29 @@ function hideInitScreen() {
   byId('app').classList.remove('app-init');
 }
 
+/* 顶栏/遮罩/快捷键：初始化向导完成后也需可用（首次打开时 init 提前返回，需在此补绑） */
+let shellEventsBound = false;
+function bindShellEvents() {
+  if (shellEventsBound) return;
+  shellEventsBound = true;
+  byId('collapseBtn').addEventListener('click', toggleSidebarCollapsed);
+  byId('menuBtn').addEventListener('click', () => {
+    byId('app').classList.toggle('sidebar-open');
+  });
+  byId('drawerBackdrop').addEventListener('click', closeDrawer);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      if (qsa('.form-modal').length) { closeFormModal(); return; }
+      if (state.seatEditMode && state.seatMoveMode && state.seatMoveSource) {
+        state.seatMoveSource = null;
+        updateMoveUI();
+        return;
+      }
+      closeDrawer();
+    }
+  });
+}
+
 /* ---------- 初始化 ---------- */
 async function init() {
   refreshTopMeta();
@@ -5294,6 +5318,7 @@ async function init() {
 
   refreshTopMeta();
   bindDataTools();
+  bindShellEvents();
 
   if (state.needsInit) {
     showInitScreen();
@@ -5301,23 +5326,6 @@ async function init() {
   }
 
   await maybeAutoBackup();
-
-  byId('collapseBtn').addEventListener('click', toggleSidebarCollapsed);
-  byId('menuBtn').addEventListener('click', () => byId('app').classList.add('sidebar-open'));
-  byId('drawerBackdrop').addEventListener('click', closeDrawer);
-
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') {
-      if (qsa('.form-modal').length) { closeFormModal(); return; }
-      if (state.seatEditMode && state.seatMoveMode && state.seatMoveSource) {
-        state.seatMoveSource = null;
-        updateMoveUI();
-        return;
-      }
-      if (byId('app').classList.contains('drawer-open')) closeDrawer();
-      else byId('app').classList.remove('sidebar-open');
-    }
-  });
 
   try {
     if (localStorage.getItem('tw-collapsed') === '1') byId('app').classList.add('collapsed');

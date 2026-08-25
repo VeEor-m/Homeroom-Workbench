@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 
 const PORT = 9333;
-const BASE = 'file:///C:/Users/Administrator/Documents/Codex/2026-08-24/build-x20/outputs/teacher-workbench/index.html';
-const OUT = 'C:/Users/Administrator/Documents/Codex/2026-08-24/build-x20/outputs/teacher-workbench/preview';
+const BASE = 'file:///D:/WorkBench/Homeroom-Workbench/index.html';
+const OUT = 'D:/WorkBench/Homeroom-Workbench/preview';
 fs.mkdirSync(OUT, { recursive: true });
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -523,6 +523,14 @@ check('自动备份时间已刷新', await cdp.eval(`Store.getRecord('settings')
 
 /* ================= 平板响应式 ================= */
 await cdp.send('Emulation.setDeviceMetricsOverride', { width: 768, height: 1024, deviceScaleFactor: 1, mobile: false });
+await cdp.eval(`document.querySelector('#app').classList.remove('sidebar-open')`);
+await cdp.eval(`document.querySelector('.menu-btn').click()`);
+await sleep(350);
+check('初始化后菜单可展开侧栏', await cdp.eval(`document.querySelector('#app').classList.contains('sidebar-open')`));
+await cdp.eval(`document.querySelector('#drawerBackdrop').click()`);
+await sleep(300);
+check('点击遮罩关闭侧栏', await cdp.eval(`!document.querySelector('#app').classList.contains('sidebar-open')`));
+await cdp.send('Emulation.setDeviceMetricsOverride', { width: 768, height: 1024, deviceScaleFactor: 1, mobile: false });
 await cdp.send('Page.navigate', { url: BASE });
 await sleep(1500);
 check('平板下菜单按钮可见', await cdp.eval(`getComputedStyle(document.querySelector('.menu-btn')).display === 'grid'`));
@@ -598,7 +606,7 @@ check('CSV 解析日期列', await cdp.eval(`parseScheduleCSV('时段,周一,周
 check('CSV 解析科目教师', await cdp.eval(`parseScheduleCSV('时段,周一,周二\\n早读,语文,英语\\n第1节,数学/王老师,物理').cells['周一-第1节'].teacher === '王老师'`));
 check('JSON 解析课程表', await cdp.eval(`parseScheduleJSON(JSON.stringify({ days: ['周一'], periods: ['第1节'], cells: { '周一-第1节': { subject: '数学', teacher: '王老师' } } })).days.length === 1`));
 
-const csvPath = 'C:/Users/Administrator/Documents/Codex/2026-08-24/build-x20/outputs/teacher-workbench/dev/sched-import-test.csv';
+const csvPath = 'D:/WorkBench/Homeroom-Workbench/dev/sched-import-test.csv';
 fs.writeFileSync(csvPath, [
   '时段,周一,周二,周三,周四,周五',
   '早读,语文,英语,语文,英语,语文',
@@ -778,8 +786,8 @@ await cdp.eval(`document.querySelector('.drawer-close').click()`);
 await sleep(300);
 
 /* ================= 导入中心（Excel 模板 / 花名册导入） ================= */
-const rosterXlsxPath = 'C:/Users/Administrator/Documents/Codex/2026-08-24/build-x20/outputs/teacher-workbench/assets/templates/花名册模板.xlsx';
-const schedXlsxPath = 'C:/Users/Administrator/Documents/Codex/2026-08-24/build-x20/outputs/teacher-workbench/assets/templates/课程表模板.xlsx';
+const rosterXlsxPath = 'D:/WorkBench/Homeroom-Workbench/assets/templates/花名册模板.xlsx';
+const schedXlsxPath = 'D:/WorkBench/Homeroom-Workbench/assets/templates/课程表模板.xlsx';
 const rosterB64 = fs.readFileSync(rosterXlsxPath).toString('base64');
 const schedB64 = fs.readFileSync(schedXlsxPath).toString('base64');
 
@@ -839,7 +847,7 @@ await cdp.eval(`document.querySelector('.form-modal [data-close]').click()`);
 await sleep(300);
 
 /* 成绩导入（CSV → 新建考试） */
-const gradeCsvPath = 'C:/Users/Administrator/Documents/Codex/2026-08-24/build-x20/outputs/teacher-workbench/dev/grade-import-test.csv';
+const gradeCsvPath = 'D:/WorkBench/Homeroom-Workbench/dev/grade-import-test.csv';
 fs.writeFileSync(gradeCsvPath, '姓名,语文,数学\n张小明,98,76\n');
 await cdp.eval(`document.querySelector('#importBtn').click()`);
 await sleep(400);
