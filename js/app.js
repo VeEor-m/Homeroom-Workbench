@@ -1114,7 +1114,7 @@ function drawerShell(icon, title, subtitle, body, editableKey) {
       </div>
       <div class="drawer-head-actions">
         ${editBtn}
-        <button class="drawer-close" id="drawerClose" type="button" aria-label="关闭详情">
+        <button class="drawer-close" id="drawerClose" type="button" aria-label="关闭详情" title="关闭">
           <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
         </button>
       </div>
@@ -1218,7 +1218,7 @@ function openRollCall() {
     <div class="form-card card roll-card" role="dialog" aria-modal="true">
       <div class="form-head">
         <h3>早读点名 · ${fmtDate(rec.date)}</h3>
-        <button class="drawer-close" data-close type="button">${ICONS.x}</button>
+        <button class="drawer-close" data-close type="button" title="关闭" aria-label="关闭">${ICONS.x}</button>
       </div>
       <div class="roll-toolbar">
         <span id="rollSummary"></span>
@@ -1953,7 +1953,7 @@ function openFormModal(cfg, values, onSave) {
   root.innerHTML = `
     <div class="form-backdrop" data-close></div>
     <div class="form-card card" role="dialog" aria-modal="true">
-      <div class="form-head"><h3>${cfg.title}</h3><button class="drawer-close" data-close type="button">${ICONS.x}</button></div>
+      <div class="form-head"><h3>${cfg.title}</h3><button class="drawer-close" data-close type="button" title="关闭" aria-label="关闭">${ICONS.x}</button></div>
       <div class="form-body">
         ${cfg.fields.map(f => fieldHtml(f, v[f.k])).join('')}
         <p class="form-error" hidden></p>
@@ -2009,7 +2009,7 @@ function openHomeworkEditor(subject) {
   root.innerHTML = `
     <div class="form-backdrop" data-close></div>
     <div class="form-card card" role="dialog" aria-modal="true">
-      <div class="form-head"><h3>${subject} · 未交名单</h3><button class="drawer-close" data-close type="button">${ICONS.x}</button></div>
+      <div class="form-head"><h3>${subject} · 未交名单</h3><button class="drawer-close" data-close type="button" title="关闭" aria-label="关闭">${ICONS.x}</button></div>
       <div class="form-body">
         <div class="hw-chips" id="hwChips"></div>
         <div class="hw-add">
@@ -2415,7 +2415,7 @@ function openStudentForm(sid, defRow, defCol) {
   root.innerHTML = `
     <div class="form-backdrop" data-close></div>
     <div class="form-card card" role="dialog" aria-modal="true">
-      <div class="form-head"><h3>${s ? `编辑学生 · ${s.name}` : '新增学生'}</h3><button class="drawer-close" data-close type="button">${ICONS.x}</button></div>
+      <div class="form-head"><h3>${s ? `编辑学生 · ${s.name}` : '新增学生'}</h3><button class="drawer-close" data-close type="button" title="关闭" aria-label="关闭">${ICONS.x}</button></div>
       <div class="form-body">
         <label class="fm-field"><span>姓名 *</span><input data-k="name" type="text" value="${esc(v.name)}"></label>
         <label class="fm-field"><span>学籍号</span><input data-k="stuNo" type="text" value="${esc(v.stuNo || '')}" placeholder="如 20260001（可留空自动生成）"></label>
@@ -3375,7 +3375,7 @@ function openDutyPicker(day, week) {
   root.innerHTML = `
     <div class="form-backdrop" data-close></div>
     <div class="form-card card" role="dialog" aria-modal="true">
-      <div class="form-head"><h3>${day} 值日名单</h3><button class="drawer-close" data-close type="button">${ICONS.x}</button></div>
+      <div class="form-head"><h3>${day} 值日名单</h3><button class="drawer-close" data-close type="button" title="关闭" aria-label="关闭">${ICONS.x}</button></div>
       <div class="form-body">
         <p class="import-hint">${day}（${fmtDate(addDays(w.weekStart, DUTY_DAYS.indexOf(day)))}）值日，请选择 ${classDutySize()} 名学生，任务自动轮换。</p>
         <div class="duty-picker">${chips}</div>
@@ -3771,7 +3771,7 @@ function openScheduleCellForm(day, period, key) {
   root.innerHTML = `
     <div class="form-backdrop" data-close></div>
     <div class="form-card card" role="dialog" aria-modal="true">
-      <div class="form-head"><h3>编辑课程</h3><button class="drawer-close" data-close type="button">${ICONS.x}</button></div>
+      <div class="form-head"><h3>编辑课程</h3><button class="drawer-close" data-close type="button" title="关闭" aria-label="关闭">${ICONS.x}</button></div>
       <div class="form-body">
         <p class="sc-edit-info">${day} · ${period}</p>
         <label class="fm-field"><span>科目</span><select data-k="subject">${subjectOptions}</select></label>
@@ -3915,7 +3915,7 @@ function openScheduleImportModal() {
   root.innerHTML = `
     <div class="form-backdrop" data-close></div>
     <div class="form-card card" role="dialog" aria-modal="true">
-      <div class="form-head"><h3>导入课程表</h3><button class="drawer-close" data-close type="button">${ICONS.x}</button></div>
+      <div class="form-head"><h3>导入课程表</h3><button class="drawer-close" data-close type="button" title="关闭" aria-label="关闭">${ICONS.x}</button></div>
       <div class="form-body">
         <p class="import-hint">
           <b>CSV 课程表</b>：第一列为时段（早读 / 第1节…），首行为日期（周一…周五），格内写「科目」或「科目/教师」。<br>
@@ -4144,7 +4144,7 @@ function openImportDialog(initialTab) {
   root.innerHTML = `
     <div class="form-backdrop" data-close></div>
     <div class="form-card card import-card" role="dialog" aria-modal="true">
-      <div class="form-head"><h3>导入数据</h3><button class="drawer-close" data-close type="button">${ICONS.x}</button></div>
+      <div class="form-head"><h3>导入数据</h3><button class="drawer-close" data-close type="button" title="关闭" aria-label="关闭">${ICONS.x}</button></div>
       <div class="form-body">
         <div class="import-tabs">
           <button class="import-tab active" data-tab="backup" type="button">备份恢复</button>
@@ -4408,7 +4408,7 @@ function openExportDialog(initialTab) {
   root.innerHTML = `
     <div class="form-backdrop" data-close></div>
     <div class="form-card card import-card" role="dialog" aria-modal="true">
-      <div class="form-head"><h3>导出数据</h3><button class="drawer-close" data-close type="button">${ICONS.x}</button></div>
+      <div class="form-head"><h3>导出数据</h3><button class="drawer-close" data-close type="button" title="关闭" aria-label="关闭">${ICONS.x}</button></div>
       <div class="form-body">
         <div class="import-tabs">
           <button class="import-tab" data-tab="roster" type="button">花名册</button>

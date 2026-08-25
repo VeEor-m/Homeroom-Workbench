@@ -748,7 +748,15 @@ body.drawer-lock { overflow: hidden; }
   transition: color .15s, border-color .15s;
 }
 
-.drawer-close svg { width: 17px; height: 17px; }
+.drawer-close svg {
+  width: 17px;
+  height: 17px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 .drawer-close:hover { color: var(--danger); border-color: var(--danger); }
 
 .drawer-body { flex: 1; padding: 18px 20px 34px; overflow-y: auto; }
