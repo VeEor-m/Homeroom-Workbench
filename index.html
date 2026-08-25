@@ -40,10 +40,18 @@
       <nav class="nav" id="nav" aria-label="主导航"></nav>
 
       <div class="sidebar-foot">
-        <button class="collapse-btn" id="collapseBtn" type="button" title="收起 / 展开导航" aria-label="收起导航">
-          <svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg>
+        <button class="sidebar-setting-btn" id="settingsBtn" type="button" title="班级信息、自动备份等通用设置" aria-label="打开设置">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6"/></svg>
+          </span>
+          <span class="nav-label">设置</span>
         </button>
-        <span class="collapse-label">收起导航</span>
+        <div class="sidebar-foot-row">
+          <button class="collapse-btn" id="collapseBtn" type="button" title="收起 / 展开导航" aria-label="收起导航">
+            <svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg>
+          </button>
+          <span class="collapse-label">收起导航</span>
+        </div>
       </div>
     </aside>
 
@@ -59,7 +67,6 @@
           <span class="chip chip-accent" id="chipSemester">2026—2027 学年</span>
           <span class="topbar-date" id="topDate"></span>
           <div class="topbar-actions">
-            <button class="btn tiny" id="settingsBtn" type="button" title="班级信息、自动备份等通用设置">设置</button>
             <button class="btn tiny" id="exportBtn" type="button" title="将全部数据导出为 JSON 备份">导出数据</button>
             <button class="btn tiny" id="importBtn" type="button" title="导入数据：备份恢复 / 花名册 / 课程表">导入数据</button>
             <button class="btn tiny" id="manualBtn" type="button" title="功能使用参考手册">使用手册</button>

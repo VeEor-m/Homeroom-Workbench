@@ -136,7 +136,8 @@ button { font-family: inherit; }
   gap: 4px;
 }
 
-.nav-item {
+.nav-item,
+.sidebar-setting-btn {
   display: flex;
   align-items: center;
   gap: 11px;
@@ -152,7 +153,8 @@ button { font-family: inherit; }
   transition: background .15s, color .15s;
 }
 
-.nav-item:hover { background: var(--primary-soft); color: var(--primary-deep); }
+.nav-item:hover,
+.sidebar-setting-btn:hover { background: var(--primary-soft); color: var(--primary-deep); }
 
 .nav-item.active {
   background: var(--primary-soft);
@@ -177,8 +179,15 @@ button { font-family: inherit; }
 }
 
 .sidebar-foot {
-  padding: 14px;
+  padding: 12px 12px 14px;
   border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.sidebar-foot-row {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -208,8 +217,10 @@ button { font-family: inherit; }
 .app.collapsed .nav-label,
 .app.collapsed .nav-soon,
 .app.collapsed .collapse-label { display: none; }
-.app.collapsed .nav-item { justify-content: center; }
-.app.collapsed .sidebar-foot { justify-content: center; }
+.app.collapsed .nav-item,
+.app.collapsed .sidebar-setting-btn { justify-content: center; }
+.app.collapsed .sidebar-foot { justify-content: center; align-items: center; }
+.app.collapsed .sidebar-foot-row { justify-content: center; }
 .app.collapsed .collapse-btn svg { transform: rotate(180deg); }
 
 /* ---------- 顶栏 ---------- */
@@ -2283,8 +2294,10 @@ body.drawer-lock { overflow: hidden; }
   .app.collapsed .nav-label,
   .app.collapsed .nav-soon,
   .app.collapsed .collapse-label { display: initial; }
-  .app.collapsed .nav-item { justify-content: flex-start; }
-  .app.collapsed .sidebar-foot { justify-content: flex-start; }
+  .app.collapsed .nav-item,
+  .app.collapsed .sidebar-setting-btn { justify-content: flex-start; }
+  .app.collapsed .sidebar-foot { justify-content: flex-start; align-items: stretch; }
+  .app.collapsed .sidebar-foot-row { justify-content: flex-start; }
   .app.collapsed .collapse-btn svg { transform: none; }
 
   .menu-btn { display: grid; }

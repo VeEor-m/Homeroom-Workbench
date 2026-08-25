@@ -4612,6 +4612,7 @@ function settingsDrawer() {
 }
 
 async function openSettingsDrawer() {
+  byId('app').classList.remove('sidebar-open');
   state.drawerKey = 'settings';
   byId('drawer').innerHTML = settingsDrawer();
   byId('app').classList.add('drawer-open');
